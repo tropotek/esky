@@ -2,7 +2,8 @@ import argparse
 import sys
 
 from ai_mem.config import load_settings
-from ai_mem.profiles import InvalidProfileName, ProfileRegistry
+from ai_mem.auth import issue_token, token_issued_at
+from ai_mem.profiles import InvalidProfileName, ProfileRegistry, UnknownProfile
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -14,6 +15,15 @@ def main(argv: list[str] | None = None) -> int:
     create = psub.add_parser("create", help="create a new profile database")
     create.add_argument("name")
     psub.add_parser("list", help="list existing profiles")
+
+    token = sub.add_parser("token", help="manage profile access tokens")
+    tsub = token.add_subparsers(dest="subcommand")
+    t_issue = tsub.add_parser(
+        "issue", help="issue a new token, invalidating any previous one")
+    t_issue.add_argument("profile")
+    t_status = tsub.add_parser(
+        "status", help="show whether a token has been issued")
+    t_status.add_argument("profile")
 
     sub.add_parser("serve", help="run the server")
 
@@ -35,6 +45,29 @@ def main(argv: list[str] | None = None) -> int:
                 print(name)
             return 0
         profile.print_help()
+        return 2
+
+    if args.command == "token":
+        if args.subcommand in ("issue", "status"):
+            try:
+                conn = registry.connect(args.profile)
+            except (UnknownProfile, InvalidProfileName):
+                print(f"unknown profile: {args.profile!r}", file=sys.stderr)
+                return 2
+            try:
+                if args.subcommand == "issue":
+                    value = issue_token(conn)
+                    print(f"token for {args.profile}: {value}")
+                    print("Store it now — it is not recoverable, and issuing "
+                          "again invalidates this one.")
+                else:
+                    issued = token_issued_at(conn)
+                    print(f"{args.profile}: issued {issued}" if issued
+                          else f"{args.profile}: no token issued (access denied)")
+            finally:
+                conn.close()
+            return 0
+        token.print_help()
         return 2
 
     if args.command == "serve":

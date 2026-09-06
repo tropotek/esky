@@ -3,6 +3,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount
 
 from ai_mem.api import build_api
+from ai_mem.auth import UNAUTHORIZED_BODY, authorize, header_value
 from ai_mem.config import Settings
 from ai_mem.embedding import Embedder
 from ai_mem.mcp_server import build_mcp
@@ -16,8 +17,8 @@ class ProfileDispatcher:
 
     Starlette's Mount does not support path parameters, so this is a small
     ASGI wrapper rather than routing. Validation happens here so an unknown or
-    unsafe profile is refused before reaching any tool — and, critically,
-    before anything could create a database for it.
+    unsafe or unauthorised profile is refused before reaching any tool — and,
+    critically, before anything could create a database for it.
     """
 
     def __init__(self, inner, registry: ProfileRegistry) -> None:
@@ -38,9 +39,12 @@ class ProfileDispatcher:
 
         name, _, rest = relative.lstrip("/").partition("/")
 
-        if not self.registry.exists_safe(name):
+        # One check covers existence and authorisation, and one response
+        # covers every failure — a distinct 404 for "no such profile" would
+        # let anyone on the network enumerate profile names.
+        if not authorize(self.registry, name, header_value(scope, "authorization")):
             await JSONResponse(
-                {"error": "unknown profile"}, status_code=404)(scope, receive, send)
+                UNAUTHORIZED_BODY, status_code=401)(scope, receive, send)
             return
 
         # Hand the inner app a clean absolute path with no mount prefix.
