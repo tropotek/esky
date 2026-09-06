@@ -24,3 +24,10 @@ def test_env_overrides(monkeypatch, tmp_path):
     s = load_settings()
     assert s.data_dir == tmp_path
     assert s.rrf_k == 10
+
+
+def test_max_distance_default_and_override(monkeypatch):
+    monkeypatch.delenv("AI_MEM_MAX_DISTANCE", raising=False)
+    assert load_settings().max_distance == 0.9
+    monkeypatch.setenv("AI_MEM_MAX_DISTANCE", "1.5")
+    assert load_settings().max_distance == 1.5

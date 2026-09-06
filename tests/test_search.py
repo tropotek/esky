@@ -1,0 +1,77 @@
+import pytest
+
+from ai_mem.facts import FactsRepo
+from ai_mem.search import hybrid_search
+
+
+@pytest.fixture
+def seeded(conn, embedder):
+    repo = FactsRepo(conn, embedder)
+    repo.write("the deployment uses docker compose on the LAN", "project", ["infra"])
+    repo.write("prefers tabs over spaces in PHP", "preference", ["style"])
+    repo.write("the wiki runs on the ttek stack", "project", ["infra"])
+    retired = repo.write("deployment used to use kubernetes", "project", ["infra"])
+    repo.retire(retired.uid)
+    return conn, embedder
+
+
+def test_lexical_match_is_found(seeded):
+    conn, emb = seeded
+    hits = hybrid_search(conn, emb, "docker compose")
+    assert hits[0].text.startswith("the deployment uses docker compose")
+
+
+def test_retired_facts_never_returned(seeded):
+    conn, emb = seeded
+    assert all("kubernetes" not in h.text for h in hybrid_search(conn, emb, "kubernetes"))
+
+
+def test_limit_is_respected(seeded):
+    conn, emb = seeded
+    assert len(hybrid_search(conn, emb, "docker compose tabs spaces", limit=2)) <= 2
+
+
+def test_tag_filter_narrows_results(seeded):
+    conn, emb = seeded
+    query = "docker compose tabs spaces"
+    unfiltered = {h.kind for h in hybrid_search(conn, emb, query)}
+    assert {"project", "preference"} <= unfiltered
+
+    hits = hybrid_search(conn, emb, query, tags=["style"])
+    assert [h.kind for h in hits] == ["preference"]
+
+
+def test_hits_are_labelled_with_layer(seeded):
+    conn, emb = seeded
+    assert all(h.layer == "facts" for h in hybrid_search(conn, emb, "docker"))
+
+
+def test_scores_descend(seeded):
+    conn, emb = seeded
+    scores = [h.score for h in hybrid_search(conn, emb, "deployment infra")]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_empty_database_returns_empty(conn, embedder):
+    assert hybrid_search(conn, embedder, "anything") == []
+
+
+def test_query_matching_nothing_returns_empty(seeded):
+    conn, emb = seeded
+    assert hybrid_search(conn, emb, "zzzznonexistenttoken") == []
+
+
+def test_punctuation_in_query_does_not_raise(seeded):
+    conn, emb = seeded
+    hybrid_search(conn, emb, 'what about "docker" AND (compose)?')
+
+
+def test_vector_cutoff_excludes_unrelated_matches(seeded):
+    conn, emb = seeded
+    # Orthogonal to everything seeded, so beyond the default relevance floor.
+    assert hybrid_search(conn, emb, "zzzznonexistenttoken") == []
+
+
+def test_raising_max_distance_readmits_them(seeded):
+    conn, emb = seeded
+    assert hybrid_search(conn, emb, "zzzznonexistenttoken", max_distance=2.0)
