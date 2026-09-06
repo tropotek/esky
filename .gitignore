@@ -7,3 +7,4 @@ __pycache__/
 # editors
 .vscode/
 *.code-workspace
+.idea/
