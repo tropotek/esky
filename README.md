@@ -191,6 +191,39 @@ would be useful in a future session, call `memory_write`.
 
 ---
 
+## Rotating a token
+
+Issuing a new token invalidates the old one **immediately** — there is no
+grace period — so every client using it stops working until you update it.
+Rotate the server first, then each client:
+
+```bash
+# on the server
+docker compose exec ai-mem ai-mem token issue personal
+
+# on every machine connected to that profile
+claude mcp remove -s user mem
+claude mcp add -s user --transport http mem \
+  http://192.168.0.7:8011/mcp/personal \
+  --header "Authorization: Bearer <new-token>"
+```
+
+Run `token issue` in a plain terminal, not inside an AI chat session — a token
+pasted into a transcript should be treated as burned. Rotating costs seconds,
+which makes "reissue whenever a token has been near a chat window" a cheap
+default.
+
+`claude mcp list` reports `✔ Connected` or a `401`, so it doubles as a check
+that a rotation landed. Clients pick up the new config on their **next**
+session, not the current one.
+
+Rotate when a token has been pasted somewhere it shouldn't, when a machine
+that held it is decommissioned, or when you want to cut off one client without
+disturbing the others — for that last case, give it its own profile instead,
+since a profile's token is shared by everything pointed at it.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause |
