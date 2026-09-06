@@ -40,13 +40,47 @@ Give each Claude account its own profile URL, and they keep separate memories.
 
 ## Security
 
-**Phase 1 has no authentication.** Anything that can reach the port can read
-and write any profile. The compose file therefore binds to `127.0.0.1` by
-default; set `AI_MEM_BIND` to a LAN address only on a network you trust, and
-do not expose it beyond that.
+Every profile is gated by its own bearer token. A token grants **exactly one
+profile** — a leaked `work` token cannot read `personal`, and revoking one
+profile leaves the others alone.
 
-Per-profile bearer tokens are the planned next step — profile routing already
-lives in the URL path, so that becomes a middleware rather than a rewrite.
+The server **fails closed**: a profile with no token issued rejects every
+request. There is no anonymous mode and no localhost exemption.
+
+```bash
+docker compose exec ai-mem ai-mem token issue work
+docker compose exec ai-mem ai-mem token status work
+```
+
+The token is printed once and never recoverable — only its SHA-256 hash is
+stored, in the profile's own database. Issuing again invalidates the previous
+token; that is how you rotate. Deleting `work.db` revokes its token with it.
+
+Connect an agent:
+
+```bash
+claude mcp add -s user --transport http mem-work \
+  http://192.168.0.7:8011/mcp/work \
+  --header "Authorization: Bearer aimem_..."
+```
+
+With tokens in place, `AI_MEM_BIND` may be set to a LAN address.
+
+Two behaviours that look odd until you know why:
+
+- **Unknown profiles return 401, not 404.** A distinct 404 would let anyone on
+  the network enumerate which profiles exist without holding a token. Missing
+  token, wrong token, another profile's token and a nonexistent profile all
+  return an identical `401 {"error": "unauthorized"}`.
+- **`/health` needs no token.** The compose healthcheck depends on it and it
+  reveals nothing. Everything else, including `/api/profiles`, requires one.
+
+`/api/profiles` returns only the profile your token grants, which makes it a
+convenient way to confirm a token works from another machine:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" http://192.168.0.7:8011/api/profiles
+```
 
 ## Tools
 
@@ -57,6 +91,16 @@ lives in the URL path, so that becomes a middleware rather than a rewrite.
 | `memory_update` | Amend a fact; a text change supersedes rather than overwrites |
 | `memory_forget` | Retire a fact — soft, never destroyed |
 | `memory_recent` | Recently written or updated facts |
+
+## CLI
+
+| Command | Purpose |
+|---|---|
+| `ai-mem profile create <name>` | Create a profile database |
+| `ai-mem profile list` | List profiles |
+| `ai-mem token issue <profile>` | Issue a token, invalidating any previous one |
+| `ai-mem token status <profile>` | Whether a token has been issued, and when |
+| `ai-mem serve` | Run the server |
 
 ## Configuration
 

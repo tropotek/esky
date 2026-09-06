@@ -32,3 +32,48 @@ def test_profile_without_subcommand_returns_error():
 
 def test_no_command_returns_error():
     assert main([]) == 2
+
+
+from ai_mem.auth import TOKEN_PREFIX
+
+
+def test_token_issue_prints_a_token_once(data_dir, capsys):
+    main(["profile", "create", "work"])
+    capsys.readouterr()
+    assert main(["token", "issue", "work"]) == 0
+    out = capsys.readouterr().out
+    assert TOKEN_PREFIX in out
+
+
+def test_token_issue_on_unknown_profile_errors(data_dir):
+    assert main(["token", "issue", "nope"]) == 2
+
+
+def test_token_issue_on_invalid_name_errors(data_dir):
+    assert main(["token", "issue", "../etc"]) == 2
+
+
+def test_token_status_reports_absence_then_presence(data_dir, capsys):
+    main(["profile", "create", "work"])
+    capsys.readouterr()
+
+    main(["token", "status", "work"])
+    assert "no token" in capsys.readouterr().out.lower()
+
+    main(["token", "issue", "work"])
+    capsys.readouterr()
+    main(["token", "status", "work"])
+    assert "issued" in capsys.readouterr().out.lower()
+
+
+def test_token_status_never_prints_the_token(data_dir, capsys):
+    main(["profile", "create", "work"])
+    main(["token", "issue", "work"])
+    token = [w for w in capsys.readouterr().out.split()
+             if w.startswith(TOKEN_PREFIX)][0]
+    main(["token", "status", "work"])
+    assert token not in capsys.readouterr().out
+
+
+def test_token_without_subcommand_returns_error():
+    assert main(["token"]) == 2
