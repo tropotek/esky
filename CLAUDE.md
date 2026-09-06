@@ -20,13 +20,17 @@ memory over streamable HTTP; each context is a separate SQLite file.
 
 ## Design documents
 
-**`_notes/docs/` is gitignored — read it before planning anything.**
+**`_notes/` is gitignored — read it before planning anything.**
 
 - `_notes/docs/specs/2026-09-06-esky-design.md` — the design. §13 is the
   phase breakdown, §14 the deliberately deferred decisions.
 - `_notes/docs/plans/` — implementation plans, one per phase.
+- `_notes/research/` — research and future ideas that are not yet committed
+  work. `retrieval-scaling.md` covers how search degrades as the store grows;
+  `ideas-backlog.md` holds loose ends and open questions.
 
-Specs and plans go in `_notes/docs/`, never in a committed `docs/`. Skip the
+Specs and plans go in `_notes/docs/`, research and speculative ideas in
+`_notes/research/`, never in a committed `docs/`. Skip the
 "commit the design doc" step that the brainstorming and writing-plans skills
 ask for; the folder is deliberately untracked.
 
