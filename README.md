@@ -95,7 +95,7 @@ expect and nothing else, isolation is working.
 ### On the same machine
 
 ```bash
-claude mcp add -s user --transport http mem \
+claude mcp add -s user --transport http esky \
   http://127.0.0.1:8011/mcp/personal \
   --header "Authorization: Bearer $TOKEN"
 ```
@@ -103,7 +103,7 @@ claude mcp add -s user --transport http mem \
 `-s user` registers it in your user config so it is available in every
 project. Drop it to add the server to the current project only.
 
-`mem` there is just the local alias for the server — call it `esky` if you
+`esky` there is just the local alias for the server — call it anything you
 prefer. It shows up in `/mcp`; the tool names (`memory_search` and friends)
 are fixed either way.
 
@@ -143,12 +143,12 @@ curl -m 5 -H "Authorization: Bearer $TOKEN" \
 Once that returns your profile, add the server:
 
 ```bash
-claude mcp add -s user --transport http mem \
+claude mcp add -s user --transport http esky \
   http://192.168.0.7:8011/mcp/personal \
   --header "Authorization: Bearer $TOKEN"
 ```
 
-Start a new session and run `/mcp` — `mem` should show as connected, with five
+Start a new session and run `/mcp` — `esky` should show as connected, with five
 tools. Test it with *"search your memory for X"*, or *"remember that I prefer
 X"*.
 
@@ -175,7 +175,7 @@ endpoint is `http://<host>:<port>/mcp/<profile>` and the header is
 ```json
 {
   "mcpServers": {
-    "mem": {
+    "esky": {
       "type": "http",
       "url": "http://192.168.0.7:8011/mcp/personal",
       "headers": { "Authorization": "Bearer esky_..." }
@@ -212,8 +212,8 @@ Rotate the server first, then each client:
 docker compose exec esky esky token issue personal
 
 # on every machine connected to that profile
-claude mcp remove -s user mem
-claude mcp add -s user --transport http mem \
+claude mcp remove -s user esky
+claude mcp add -s user --transport http esky \
   http://192.168.0.7:8011/mcp/personal \
   --header "Authorization: Bearer <new-token>"
 ```
