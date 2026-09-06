@@ -97,6 +97,14 @@ claude mcp add -s user --transport http mem \
 `-s user` registers it in your user config so it is available in every
 project. Drop it to add the server to the current project only.
 
+**If you have already set `AI_MEM_BIND` to a LAN address, use that address
+here too, not `127.0.0.1`.** Docker publishes the port on one interface only,
+so binding to `192.168.0.7` makes loopback unreachable — a local client gets a
+connection refused that looks nothing like a config error.
+
+The server is only picked up by **new** sessions. Restart Claude, then run
+`/mcp` to confirm.
+
 ### From another machine on the LAN
 
 First expose the port on the host. In `.env` on the **server**:
