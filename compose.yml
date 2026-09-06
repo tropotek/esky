@@ -35,6 +35,9 @@ services:
       - ai-mem-models:/models
     environment:
       PYTHONHASHSEED: "0"
+      # The container runs as root against bind-mounted source; without this
+      # it litters root-owned __pycache__ dirs the host user cannot delete.
+      PYTHONDONTWRITEBYTECODE: "1"
       AI_MEM_DATA_DIR: /tmp/ai-mem-data
 
 volumes:
