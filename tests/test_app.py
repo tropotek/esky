@@ -34,8 +34,8 @@ def test_stats_for_known_profile(client):
     assert body["facts"] == 0
 
 
-def test_stats_for_unknown_profile_is_404(client):
-    assert client.get("/api/nope/stats").status_code == 404
+def test_stats_for_unknown_profile_is_401(client):
+    assert client.get("/api/nope/stats").status_code == 401
 
 
 def test_unknown_mcp_profile_is_401(client):
@@ -48,7 +48,11 @@ def test_unknown_profile_creates_no_file(client, tmp_path):
     assert [p.name for p in tmp_path.glob("*.db")] == ["work.db"]
 
 
-def test_invalid_profile_name_is_404_not_500(client):
+def test_traversal_attempt_is_a_route_miss_not_a_500(client):
+    # A name containing a slash matches no route, so Starlette answers 404
+    # before our handler runs. That is a routing fact, identical for any
+    # malformed URL, so it reveals nothing about which profiles exist —
+    # unlike a well-formed unknown profile, which must 401 (below).
     assert client.get("/api/..%2Fetc/stats").status_code == 404
 
 
