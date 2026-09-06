@@ -48,7 +48,7 @@ def test_another_profiles_token_is_rejected(setup):
 
 def test_garbage_token_is_rejected(setup):
     client, _, _ = setup
-    assert client.post("/mcp/work", headers=auth("aimem_nonsense")).status_code == 401
+    assert client.post("/mcp/work", headers=auth("esky_nonsense")).status_code == 401
 
 
 def test_profile_without_an_issued_token_fails_closed(setup):
@@ -67,7 +67,7 @@ def test_unknown_profile_is_401_not_404(setup):
 def test_unknown_and_unauthorised_are_indistinguishable(setup):
     client, _, _ = setup
     missing = client.post("/mcp/nosuchprofile")
-    wrong = client.post("/mcp/work", headers=auth("aimem_wrong"))
+    wrong = client.post("/mcp/work", headers=auth("esky_wrong"))
     assert missing.status_code == wrong.status_code
     assert missing.json() == wrong.json()
 

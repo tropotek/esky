@@ -4,7 +4,7 @@ import secrets
 import sqlite3
 from datetime import UTC, datetime
 
-TOKEN_PREFIX = "aimem_"
+TOKEN_PREFIX = "esky_"
 
 UNAUTHORIZED_BODY = {"error": "unauthorized"}
 

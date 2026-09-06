@@ -1,8 +1,14 @@
-# esky
+# esky 🧊
+
+**A cold box for your agents' memory. Self-hosted, on your own network.**
 
 A self-hosted MCP memory server for the local network. Any MCP-speaking agent
 — Claude Code, Codex, the OpenAI Agents SDK — can read and write durable
 memory over HTTP, with each context kept in its own database.
+
+Agents start every session cold. esky is the box on the network they all
+reach into: put a fact in from the laptop, take it out from the desktop, and
+it is still there next week.
 
 **Phase 1** ships the curated layer: facts you and your agents record
 deliberately, retrieved by hybrid keyword + semantic search. Automatic
@@ -41,7 +47,7 @@ Edit `.env`. The two that matter:
 
 ```ini
 ESKY_BIND=127.0.0.1   # 127.0.0.1 = this machine only.
-                        # Set to your LAN IP to allow other machines.
+                      # Set to your LAN IP to allow other machines.
 ESKY_PORT=8011
 ```
 
@@ -76,7 +82,7 @@ old.
 Confirm it works:
 
 ```bash
-TOKEN=aimem_...
+TOKEN=esky_...
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8011/api/profiles
 # -> {"profiles":["personal"]}
 ```
@@ -96,6 +102,10 @@ claude mcp add -s user --transport http mem \
 
 `-s user` registers it in your user config so it is available in every
 project. Drop it to add the server to the current project only.
+
+`mem` there is just the local alias for the server — call it `esky` if you
+prefer. It shows up in `/mcp`; the tool names (`memory_search` and friends)
+are fixed either way.
 
 **If you have already set `ESKY_BIND` to a LAN address, use that address
 here too, not `127.0.0.1`.** Docker publishes the port on one interface only,
@@ -168,7 +178,7 @@ endpoint is `http://<host>:<port>/mcp/<profile>` and the header is
     "mem": {
       "type": "http",
       "url": "http://192.168.0.7:8011/mcp/personal",
-      "headers": { "Authorization": "Bearer aimem_..." }
+      "headers": { "Authorization": "Bearer esky_..." }
     }
   }
 }
@@ -238,11 +248,11 @@ since a profile's token is shared by everything pointed at it.
 Server-side checks:
 
 ```bash
-docker compose ps                                    # running and healthy?
-docker compose logs --tail=50 esky                 # errors?
-docker compose exec esky esky profile list       # which profiles exist
-docker compose exec esky esky token status work  # is a token issued
-curl -s http://127.0.0.1:8011/health                 # needs no token
+docker compose ps                                   # running and healthy?
+docker compose logs --tail=50 esky                  # errors?
+docker compose exec esky esky profile list          # which profiles exist
+docker compose exec esky esky token status work     # is a token issued
+curl -s http://127.0.0.1:8011/health                # needs no token
 ```
 
 ---
@@ -344,3 +354,19 @@ docker compose build test
 ```
 
 Design documents live in `_notes/docs/` and are gitignored.
+
+## The name
+
+An esky is what Australians call a cool box — the one everybody brings to the
+shared thing, that keeps what you put in it. It is a **code name**: chosen
+because it describes the job better than `ai-mem` did, not because it is a
+brand. If this ever goes past the LAN it gets revisited.
+
+Prior to 2026-09-06 the project was `ai-mem`, and every environment variable
+carried an `AI_MEM_` prefix. Those are gone — only `ESKY_*` is read, and a
+stale `.env` will start the server on `127.0.0.1:8080` instead of your LAN
+address.
+
+Tokens issued before the rename begin with `aimem_` rather than `esky_`. They
+keep working — only the whole string's hash is ever compared, and the prefix
+carries no meaning — so reissue for tidiness, not out of necessity.
