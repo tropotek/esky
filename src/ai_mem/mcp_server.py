@@ -38,9 +38,18 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
     def memory_write(text: str, kind: str, tags: list[str] | None = None) -> dict:
         """Record one durable fact worth remembering in future sessions.
 
-        `kind` is one of: user, preference, project, reference, decision.
         Write things that stay true beyond this conversation. Do not write
         transient task state, or anything the repository already records.
+
+        `kind` is one of:
+          user       - who the user is: role, expertise, context
+          preference - how they want work done
+          project    - goals, constraints, or state of ongoing work
+          reference  - a pointer to something external: URL, ticket, dashboard
+          research   - findings you gathered and concluded, with the conclusion
+                       stated; use this rather than `reference` when the value
+                       is the finding itself, not where it lives
+          decision   - a choice made and the reasoning behind it
         """
         with _repo() as (_, repo):
             return asdict(repo.write(text, kind, tags or [], source="agent"))

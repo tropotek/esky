@@ -7,7 +7,9 @@ from typing import Sequence
 
 import sqlite_vec
 
-KINDS = frozenset({"user", "preference", "project", "reference", "decision"})
+KINDS = frozenset({
+    "user", "preference", "project", "reference", "research", "decision",
+})
 
 
 class InvalidKind(Exception):

@@ -84,3 +84,15 @@ def test_recent_filters_by_kind(repo):
     repo.write("a pref", "preference", [])
     repo.write("a proj", "project", [])
     assert [f.text for f in repo.recent(kind="preference")] == ["a pref"]
+
+
+def test_research_is_a_valid_kind(repo):
+    f = repo.write("bge-small beats MiniLM on retrieval at the same 384 dims",
+                   "research", ["embeddings"])
+    assert f.kind == "research"
+
+
+def test_recent_filters_by_research_kind(repo):
+    repo.write("a finding", "research", [])
+    repo.write("a project note", "project", [])
+    assert [f.text for f in repo.recent(kind="research")] == ["a finding"]

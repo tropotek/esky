@@ -87,7 +87,7 @@ curl -H "Authorization: Bearer $TOKEN" http://192.168.0.7:8011/api/profiles
 | Tool | Purpose |
 |---|---|
 | `memory_search` | Hybrid BM25 + vector search over curated facts |
-| `memory_write` | Record a durable fact (`user`, `preference`, `project`, `reference`, `decision`) |
+| `memory_write` | Record a durable fact (`user`, `preference`, `project`, `reference`, `research`, `decision`) |
 | `memory_update` | Amend a fact; a text change supersedes rather than overwrites |
 | `memory_forget` | Retire a fact — soft, never destroyed |
 | `memory_recent` | Recently written or updated facts |
