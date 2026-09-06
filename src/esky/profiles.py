@@ -2,8 +2,8 @@ import re
 import sqlite3
 from pathlib import Path
 
-from ai_mem.db.connection import open_db
-from ai_mem.db.schema import migrate
+from esky.db.connection import open_db
+from esky.db.schema import migrate
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 

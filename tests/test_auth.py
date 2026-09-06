@@ -1,4 +1,4 @@
-from ai_mem.auth import (
+from esky.auth import (
     TOKEN_PREFIX, extract_bearer, generate_token, hash_token, verify_token,
 )
 
@@ -52,7 +52,7 @@ def test_extract_bearer_rejects_other_schemes_and_junk():
     assert extract_bearer("abc123") is None
 
 
-from ai_mem.auth import issue_token, read_token_hash, token_issued_at
+from esky.auth import issue_token, read_token_hash, token_issued_at
 
 
 def test_no_token_issued_reads_as_none(conn):

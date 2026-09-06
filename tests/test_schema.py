@@ -1,7 +1,7 @@
 import pytest
 
-from ai_mem.db.connection import open_db
-from ai_mem.db.schema import SCHEMA_VERSION, migrate
+from esky.db.connection import open_db
+from esky.db.schema import SCHEMA_VERSION, migrate
 
 
 @pytest.fixture

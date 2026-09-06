@@ -1,13 +1,13 @@
 import argparse
 import sys
 
-from ai_mem.config import load_settings
-from ai_mem.auth import issue_token, token_issued_at
-from ai_mem.profiles import InvalidProfileName, ProfileRegistry, UnknownProfile
+from esky.config import load_settings
+from esky.auth import issue_token, token_issued_at
+from esky.profiles import InvalidProfileName, ProfileRegistry, UnknownProfile
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ai-mem")
+    parser = argparse.ArgumentParser(prog="esky")
     sub = parser.add_subparsers(dest="command")
 
     profile = sub.add_parser("profile", help="manage memory profiles")
@@ -73,7 +73,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "serve":
         import uvicorn
 
-        from ai_mem.app import build_app
+        from esky.app import build_app
 
         uvicorn.run(build_app(settings), host=settings.host, port=settings.port)
         return 0

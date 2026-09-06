@@ -22,7 +22,7 @@ memory over streamable HTTP; each context is a separate SQLite file.
 
 **`_notes/docs/` is gitignored — read it before planning anything.**
 
-- `_notes/docs/specs/2026-09-06-ai-mem-design.md` — the design. §13 is the
+- `_notes/docs/specs/2026-09-06-esky-design.md` — the design. §13 is the
   phase breakdown, §14 the deliberately deferred decisions.
 - `_notes/docs/plans/` — implementation plans, one per phase.
 
@@ -40,8 +40,8 @@ docker compose run --rm test pytest tests/test_search.py -v
 docker compose run --rm test pytest tests/test_facts.py::test_write_returns_fact_with_uid -v
 docker compose build test                                 # only when deps change
 docker compose up -d                                      # run the server
-docker compose exec ai-mem ai-mem profile create <name>
-docker compose exec ai-mem ai-mem token issue <profile>
+docker compose exec esky esky profile create <name>
+docker compose exec esky esky token issue <profile>
 ```
 
 Source is bind-mounted into the dev container, so edits apply without a
@@ -84,7 +84,7 @@ Breaking these silently breaks the guarantees the design rests on:
 - **`EMBED_DIM` lives only in `config.py`** and must match the `FLOAT[384]`
   in the DDL. Changing the embedding model requires a reindex.
 - **Vector search needs its distance floor.** KNN returns k neighbours however
-  unrelated, so without `AI_MEM_MAX_DISTANCE` a nonsense query hands the agent
+  unrelated, so without `ESKY_MAX_DISTANCE` a nonsense query hands the agent
   confident-looking facts. Measured L2 over unit-normalised `bge-small`:
   related 0.54–0.74, unrelated 0.88–1.00.
 

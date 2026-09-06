@@ -1,4 +1,4 @@
-# ai-mem
+# esky
 
 A self-hosted MCP memory server for the local network. Any MCP-speaking agent
 — Claude Code, Codex, the OpenAI Agents SDK — can read and write durable
@@ -32,20 +32,20 @@ silently swallow a week of memories.
 **Requirements:** Docker and Docker Compose. Nothing else — no local Python.
 
 ```bash
-git clone <repo-url> ai-mem
-cd ai-mem
+git clone <repo-url> esky
+cd esky
 cp .env.example .env
 ```
 
 Edit `.env`. The two that matter:
 
 ```ini
-AI_MEM_BIND=127.0.0.1   # 127.0.0.1 = this machine only.
+ESKY_BIND=127.0.0.1   # 127.0.0.1 = this machine only.
                         # Set to your LAN IP to allow other machines.
-AI_MEM_PORT=8011
+ESKY_PORT=8011
 ```
 
-Leave `AI_MEM_BIND` on `127.0.0.1` until you have issued a token (next
+Leave `ESKY_BIND` on `127.0.0.1` until you have issued a token (next
 section). Then start it:
 
 ```bash
@@ -62,8 +62,8 @@ Create one profile per context you want kept separate — `work`, `personal`,
 whatever fits. Then issue its token.
 
 ```bash
-docker compose exec ai-mem ai-mem profile create personal
-docker compose exec ai-mem ai-mem token issue personal
+docker compose exec esky esky profile create personal
+docker compose exec esky esky token issue personal
 ```
 
 The token prints **once** and is not recoverable — only its SHA-256 hash is
@@ -97,7 +97,7 @@ claude mcp add -s user --transport http mem \
 `-s user` registers it in your user config so it is available in every
 project. Drop it to add the server to the current project only.
 
-**If you have already set `AI_MEM_BIND` to a LAN address, use that address
+**If you have already set `ESKY_BIND` to a LAN address, use that address
 here too, not `127.0.0.1`.** Docker publishes the port on one interface only,
 so binding to `192.168.0.7` makes loopback unreachable — a local client gets a
 connection refused that looks nothing like a config error.
@@ -110,7 +110,7 @@ The server is only picked up by **new** sessions. Restart Claude, then run
 First expose the port on the host. In `.env` on the **server**:
 
 ```ini
-AI_MEM_BIND=192.168.0.7    # the server's LAN address
+ESKY_BIND=192.168.0.7    # the server's LAN address
 ```
 
 ```bash
@@ -147,8 +147,8 @@ X"*.
 Give each its own profile and token:
 
 ```bash
-docker compose exec ai-mem ai-mem profile create work
-docker compose exec ai-mem ai-mem token issue work
+docker compose exec esky esky profile create work
+docker compose exec esky esky token issue work
 ```
 
 Point that client at `/mcp/work`. Two Claude accounts on one machine, or a
@@ -199,7 +199,7 @@ Rotate the server first, then each client:
 
 ```bash
 # on the server
-docker compose exec ai-mem ai-mem token issue personal
+docker compose exec esky esky token issue personal
 
 # on every machine connected to that profile
 claude mcp remove -s user mem
@@ -230,7 +230,7 @@ since a profile's token is shared by everything pointed at it.
 |---|---|
 | `curl` hangs, returns nothing | Malformed URL. `curl` reads `192.161` as the IP `192.0.0.161` and waits. Check the full address **and** the `:8011` port — without it, curl tries port 80. Always pass `-m 5`. |
 | `{"error":"unauthorized"}` | Missing, wrong, or another profile's token; or no token issued for that profile; or the profile does not exist. All return an identical 401 by design — see Security. |
-| `Connection refused` from another machine | `AI_MEM_BIND` is still `127.0.0.1`. Set it to the LAN IP and `docker compose up -d`. |
+| `Connection refused` from another machine | `ESKY_BIND` is still `127.0.0.1`. Set it to the LAN IP and `docker compose up -d`. |
 | Connection times out from another machine | Host firewall. Check `sudo ufw status`. |
 | `/mcp` shows the server but no tools | Token rejected at connect. Test the same token with the `/api/profiles` curl above. |
 | Tool descriptions look out of date | Clients cache them at session start. Restart the Claude session. |
@@ -239,9 +239,9 @@ Server-side checks:
 
 ```bash
 docker compose ps                                    # running and healthy?
-docker compose logs --tail=50 ai-mem                 # errors?
-docker compose exec ai-mem ai-mem profile list       # which profiles exist
-docker compose exec ai-mem ai-mem token status work  # is a token issued
+docker compose logs --tail=50 esky                 # errors?
+docker compose exec esky esky profile list       # which profiles exist
+docker compose exec esky esky token status work  # is a token issued
 curl -s http://127.0.0.1:8011/health                 # needs no token
 ```
 
@@ -275,26 +275,26 @@ itself.
 
 | Command | Purpose |
 |---|---|
-| `ai-mem profile create <name>` | Create a profile database |
-| `ai-mem profile list` | List profiles |
-| `ai-mem token issue <profile>` | Issue a token, invalidating any previous one |
-| `ai-mem token status <profile>` | Whether a token has been issued, and when |
-| `ai-mem serve` | Run the server |
+| `esky profile create <name>` | Create a profile database |
+| `esky profile list` | List profiles |
+| `esky token issue <profile>` | Issue a token, invalidating any previous one |
+| `esky token status <profile>` | Whether a token has been issued, and when |
+| `esky serve` | Run the server |
 
-Run them via `docker compose exec ai-mem <command>`.
+Run them via `docker compose exec esky <command>`.
 
 ## Configuration
 
 | Variable | Default | Notes |
 |---|---|---|
-| `AI_MEM_BIND` | `127.0.0.1` | Host interface the port publishes on |
-| `AI_MEM_PORT` | `8080` | Published port |
-| `AI_MEM_DATA_DIR` | `/data` | Where profile databases live |
-| `AI_MEM_EMBED_MODEL` | `BAAI/bge-small-en-v1.5` | 384-dim; changing this needs a reindex |
-| `AI_MEM_RRF_K` | `60` | Reciprocal rank fusion constant |
-| `AI_MEM_MAX_DISTANCE` | `0.9` | Relevance floor for vector hits |
+| `ESKY_BIND` | `127.0.0.1` | Host interface the port publishes on |
+| `ESKY_PORT` | `8080` | Published port |
+| `ESKY_DATA_DIR` | `/data` | Where profile databases live |
+| `ESKY_EMBED_MODEL` | `BAAI/bge-small-en-v1.5` | 384-dim; changing this needs a reindex |
+| `ESKY_RRF_K` | `60` | Reciprocal rank fusion constant |
+| `ESKY_MAX_DISTANCE` | `0.9` | Relevance floor for vector hits |
 
-`AI_MEM_MAX_DISTANCE` is worth understanding: vector KNN returns its nearest
+`ESKY_MAX_DISTANCE` is worth understanding: vector KNN returns its nearest
 neighbours however unrelated they are, so without a floor a nonsense query
 still hands the agent confident-looking facts. Measured L2 distances over
 unit-normalised `bge-small` vectors put related queries at 0.54–0.74 and

@@ -2,7 +2,7 @@ from functools import cached_property
 
 from fastembed import TextEmbedding
 
-from ai_mem.config import EMBED_DIM
+from esky.config import EMBED_DIM
 
 
 class Embedder:

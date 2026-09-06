@@ -1,6 +1,6 @@
 import pytest
 
-from ai_mem.profiles import InvalidProfileName, ProfileRegistry, UnknownProfile
+from esky.profiles import InvalidProfileName, ProfileRegistry, UnknownProfile
 
 
 @pytest.fixture

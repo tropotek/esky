@@ -1,7 +1,7 @@
 import pytest
 
-from ai_mem.facts import FactsRepo
-from ai_mem.search import hybrid_search
+from esky.facts import FactsRepo
+from esky.search import hybrid_search
 
 
 @pytest.fixture

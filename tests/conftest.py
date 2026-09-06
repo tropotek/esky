@@ -1,8 +1,8 @@
 import pytest
 
-from ai_mem.config import EMBED_DIM
-from ai_mem.db.connection import open_db
-from ai_mem.db.schema import migrate
+from esky.config import EMBED_DIM
+from esky.db.connection import open_db
+from esky.db.schema import migrate
 
 
 class FakeEmbedder:

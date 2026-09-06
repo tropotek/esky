@@ -1,6 +1,6 @@
 import sqlite3
 
-from ai_mem.config import EMBED_DIM
+from esky.config import EMBED_DIM
 
 SCHEMA_VERSION = 1
 

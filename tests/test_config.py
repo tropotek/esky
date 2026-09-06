@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ai_mem.config import EMBED_DIM, load_settings
+from esky.config import EMBED_DIM, load_settings
 
 
 def test_embed_dim_is_384():
@@ -8,8 +8,8 @@ def test_embed_dim_is_384():
 
 
 def test_defaults_when_env_absent(monkeypatch):
-    for key in ("AI_MEM_DATA_DIR", "AI_MEM_EMBED_MODEL", "AI_MEM_RRF_K",
-                "AI_MEM_HOST", "AI_MEM_PORT"):
+    for key in ("ESKY_DATA_DIR", "ESKY_EMBED_MODEL", "ESKY_RRF_K",
+                "ESKY_HOST", "ESKY_PORT"):
         monkeypatch.delenv(key, raising=False)
     s = load_settings()
     assert s.data_dir == Path("/data")
@@ -19,15 +19,15 @@ def test_defaults_when_env_absent(monkeypatch):
 
 
 def test_env_overrides(monkeypatch, tmp_path):
-    monkeypatch.setenv("AI_MEM_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("AI_MEM_RRF_K", "10")
+    monkeypatch.setenv("ESKY_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ESKY_RRF_K", "10")
     s = load_settings()
     assert s.data_dir == tmp_path
     assert s.rrf_k == 10
 
 
 def test_max_distance_default_and_override(monkeypatch):
-    monkeypatch.delenv("AI_MEM_MAX_DISTANCE", raising=False)
+    monkeypatch.delenv("ESKY_MAX_DISTANCE", raising=False)
     assert load_settings().max_distance == 0.9
-    monkeypatch.setenv("AI_MEM_MAX_DISTANCE", "1.5")
+    monkeypatch.setenv("ESKY_MAX_DISTANCE", "1.5")
     assert load_settings().max_distance == 1.5

@@ -1,9 +1,9 @@
 FROM python:3.12-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
-    AI_MEM_DATA_DIR=/data \
-    AI_MEM_HOST=0.0.0.0 \
-    AI_MEM_PORT=8080 \
+    ESKY_DATA_DIR=/data \
+    ESKY_HOST=0.0.0.0 \
+    ESKY_PORT=8080 \
     FASTEMBED_CACHE_PATH=/models
 
 WORKDIR /app
@@ -28,4 +28,4 @@ RUN python -c "from fastembed import TextEmbedding; TextEmbedding(model_name='BA
 
 VOLUME ["/data"]
 EXPOSE 8080
-CMD ["ai-mem", "serve"]
+CMD ["esky", "serve"]

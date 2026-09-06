@@ -2,7 +2,7 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from ai_mem.auth import UNAUTHORIZED_BODY, authorize
+from esky.auth import UNAUTHORIZED_BODY, authorize
 
 
 def build_api(registry) -> Starlette:

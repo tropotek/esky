@@ -1,18 +1,19 @@
-name: ai-mem
+name: esky
 
 services:
-  ai-mem:
+  esky:
     build:
       context: .
       target: prod
-    container_name: ai-mem
+    container_name: esky
     ports:
-      # Bind to the LAN interface explicitly. No auth in Phase 1 (spec §10):
-      # do not change this to 0.0.0.0 without adding per-profile tokens first.
-      - "${AI_MEM_BIND:-127.0.0.1}:${AI_MEM_PORT:-8080}:8080"
+      # Bind to the LAN interface explicitly. Per-profile bearer tokens landed
+      # in Phase 1.5, so LAN exposure is supported — but issue tokens before
+      # widening this, and do not reach for 0.0.0.0 when a LAN IP will do.
+      - "${ESKY_BIND:-127.0.0.1}:${ESKY_PORT:-8080}:8080"
     volumes:
       - ./data:/data
-      - ai-mem-models:/models
+      - esky-models:/models
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c",
@@ -32,13 +33,13 @@ services:
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
-      - ai-mem-models:/models
+      - esky-models:/models
     environment:
       PYTHONHASHSEED: "0"
       # The container runs as root against bind-mounted source; without this
       # it litters root-owned __pycache__ dirs the host user cannot delete.
       PYTHONDONTWRITEBYTECODE: "1"
-      AI_MEM_DATA_DIR: /tmp/ai-mem-data
+      ESKY_DATA_DIR: /tmp/esky-data
 
 volumes:
-  ai-mem-models:
+  esky-models:

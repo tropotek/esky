@@ -53,7 +53,7 @@ def _vector_ranking(conn, embedder, query: str, pool: int,
         unrelated 'zzzznonexistenttoken'    -> 0.875
         unrelated 'recipe for banana bread' -> 1.001
     The bands separate, but not by much. 0.9 sits in the gap; tune via
-    AI_MEM_MAX_DISTANCE and re-measure if recall looks wrong.
+    ESKY_MAX_DISTANCE and re-measure if recall looks wrong.
     """
     (vector,) = embedder.encode([query])
     rows = conn.execute(

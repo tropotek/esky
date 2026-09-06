@@ -1,7 +1,7 @@
 import pytest
 
-from ai_mem.config import EMBED_DIM
-from ai_mem.embedding import Embedder
+from esky.config import EMBED_DIM
+from esky.embedding import Embedder
 
 
 @pytest.fixture(scope="module")

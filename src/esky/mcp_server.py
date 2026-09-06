@@ -3,13 +3,13 @@ from dataclasses import asdict
 
 from fastmcp import FastMCP
 
-from ai_mem.facts import FactsRepo
-from ai_mem.profile_context import current_profile
-from ai_mem.search import hybrid_search
+from esky.facts import FactsRepo
+from esky.profile_context import current_profile
+from esky.search import hybrid_search
 
 
 def build_mcp(registry, embedder, settings) -> FastMCP:
-    mcp = FastMCP("ai-mem")
+    mcp = FastMCP("esky")
 
     @contextmanager
     def _repo():

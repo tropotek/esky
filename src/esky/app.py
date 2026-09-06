@@ -2,13 +2,13 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Mount
 
-from ai_mem.api import build_api
-from ai_mem.auth import UNAUTHORIZED_BODY, authorize, header_value
-from ai_mem.config import Settings
-from ai_mem.embedding import Embedder
-from ai_mem.mcp_server import build_mcp
-from ai_mem.profile_context import reset_profile, set_profile
-from ai_mem.profiles import ProfileRegistry
+from esky.api import build_api
+from esky.auth import UNAUTHORIZED_BODY, authorize, header_value
+from esky.config import Settings
+from esky.embedding import Embedder
+from esky.mcp_server import build_mcp
+from esky.profile_context import reset_profile, set_profile
+from esky.profiles import ProfileRegistry
 
 
 class ProfileDispatcher:

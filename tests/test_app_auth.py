@@ -1,15 +1,15 @@
 import pytest
 from starlette.testclient import TestClient
 
-from ai_mem.app import build_app
-from ai_mem.auth import issue_token
-from ai_mem.config import load_settings
-from ai_mem.profiles import ProfileRegistry
+from esky.app import build_app
+from esky.auth import issue_token
+from esky.config import load_settings
+from esky.profiles import ProfileRegistry
 
 
 @pytest.fixture
 def setup(tmp_path, monkeypatch):
-    monkeypatch.setenv("AI_MEM_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ESKY_DATA_DIR", str(tmp_path))
     registry = ProfileRegistry(tmp_path)
     registry.create("work")
     registry.create("personal")

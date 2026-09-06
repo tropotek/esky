@@ -1,11 +1,11 @@
 import pytest
 
-from ai_mem.cli import main
+from esky.cli import main
 
 
 @pytest.fixture(autouse=True)
 def data_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("AI_MEM_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ESKY_DATA_DIR", str(tmp_path))
     return tmp_path
 
 
@@ -34,7 +34,7 @@ def test_no_command_returns_error():
     assert main([]) == 2
 
 
-from ai_mem.auth import TOKEN_PREFIX
+from esky.auth import TOKEN_PREFIX
 
 
 def test_token_issue_prints_a_token_once(data_dir, capsys):

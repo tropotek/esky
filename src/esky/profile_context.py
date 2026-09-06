@@ -1,6 +1,6 @@
 from contextvars import ContextVar, Token
 
-_current: ContextVar[str] = ContextVar("ai_mem_profile")
+_current: ContextVar[str] = ContextVar("esky_profile")
 
 
 class NoProfileBound(Exception):

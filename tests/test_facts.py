@@ -1,6 +1,6 @@
 import pytest
 
-from ai_mem.facts import FactNotFound, FactsRepo, InvalidKind
+from esky.facts import FactNotFound, FactsRepo, InvalidKind
 
 
 @pytest.fixture

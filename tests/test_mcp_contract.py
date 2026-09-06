@@ -1,15 +1,15 @@
 import pytest
 from fastmcp import Client
 
-from ai_mem.config import load_settings
-from ai_mem.mcp_server import build_mcp
-from ai_mem.profile_context import reset_profile, set_profile
-from ai_mem.profiles import ProfileRegistry
+from esky.config import load_settings
+from esky.mcp_server import build_mcp
+from esky.profile_context import reset_profile, set_profile
+from esky.profiles import ProfileRegistry
 
 
 @pytest.fixture
 def mcp(tmp_path, embedder, monkeypatch):
-    monkeypatch.setenv("AI_MEM_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ESKY_DATA_DIR", str(tmp_path))
     registry = ProfileRegistry(tmp_path)
     registry.create("work")
     registry.create("personal")
@@ -33,9 +33,9 @@ async def test_exposes_exactly_five_tools(mcp):
 async def test_write_then_search_roundtrip(mcp, as_work):
     async with Client(mcp) as client:
         await client.call_tool("memory_write", {
-            "text": "the ai-mem server listens on 8080",
+            "text": "the esky server listens on 8080",
             "kind": "project", "tags": ["infra"]})
-        result = await client.call_tool("memory_search", {"query": "ai-mem port 8080"})
+        result = await client.call_tool("memory_search", {"query": "esky port 8080"})
     assert "8080" in str(result.content)
 
 
