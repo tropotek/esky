@@ -43,13 +43,20 @@ cd esky
 cp .env.example .env
 ```
 
-Edit `.env`. The two that matter:
+Edit `.env`. The ones that matter:
 
 ```ini
 ESKY_BIND=127.0.0.1   # 127.0.0.1 = this machine only.
                       # Set to your LAN IP to allow other machines.
 ESKY_PORT=8011
+ESKY_UID=1000         # your host user — `id -u`
+ESKY_GID=1000         # your host group — `id -g`
 ```
+
+`ESKY_UID`/`ESKY_GID` make the container run as you, so the SQLite files in
+`./data` are yours to open rather than root's. Leave them unset and the
+container runs as root, which is how you end up unable to read your own
+database from the host.
 
 Leave `ESKY_BIND` on `127.0.0.1` until you have issued a token (next
 section). Then start it:
@@ -240,6 +247,7 @@ since a profile's token is shared by everything pointed at it.
 |---|---|
 | `curl` hangs, returns nothing | Malformed URL. `curl` reads `192.161` as the IP `192.0.0.161` and waits. Check the full address **and** the `:8011` port — without it, curl tries port 80. Always pass `-m 5`. |
 | `{"error":"unauthorized"}` | Missing, wrong, or another profile's token; or no token issued for that profile; or the profile does not exist. All return an identical 401 by design — see Security. |
+| `./data/*.db` owned by `root`, unreadable from the host | Set `ESKY_UID`/`ESKY_GID` in `.env`, then fix the existing files once: `docker run --rm -v "$PWD/data:/data" alpine chown -R $(id -u):$(id -g) /data` |
 | `Connection refused` from another machine | `ESKY_BIND` is still `127.0.0.1`. Set it to the LAN IP and `docker compose up -d`. |
 | Connection times out from another machine | Host firewall. Check `sudo ufw status`. |
 | `/mcp` shows the server but no tools | Token rejected at connect. Test the same token with the `/api/profiles` curl above. |
@@ -299,6 +307,8 @@ Run them via `docker compose exec esky <command>`.
 |---|---|---|
 | `ESKY_BIND` | `127.0.0.1` | Host interface the port publishes on |
 | `ESKY_PORT` | `8080` | Published port |
+| `ESKY_UID` | `0` | Host UID the containers run as; set to `id -u` |
+| `ESKY_GID` | `0` | Host GID the containers run as; set to `id -g` |
 | `ESKY_DATA_DIR` | `/data` | Where profile databases live |
 | `ESKY_EMBED_MODEL` | `BAAI/bge-small-en-v1.5` | 384-dim; changing this needs a reindex |
 | `ESKY_RRF_K` | `60` | Reciprocal rank fusion constant |

@@ -11,9 +11,10 @@ WORKDIR /app
 
 # --- dev: editable install, source bind-mounted at run time ---------------
 FROM base AS dev
+RUN mkdir -p /models && chmod 0777 /models
 COPY pyproject.toml ./
 COPY src ./src
-RUN pip install --no-cache-dir -e ".[dev]"
+RUN pip install --no-cache-dir -e ".[dev]" && chmod 0777 /app
 CMD ["pytest", "-v"]
 
 
@@ -25,6 +26,10 @@ RUN pip install --no-cache-dir .
 
 # Pre-download the ONNX model so the first write is not a cold start.
 RUN python -c "from fastembed import TextEmbedding; TextEmbedding(model_name='BAAI/bge-small-en-v1.5')"
+
+# The container may run as an arbitrary host UID (compose `user:`), so the
+# writable dirs cannot be owned by a user baked into the image.
+RUN mkdir -p /data /models && chmod 0777 /data /models
 
 VOLUME ["/data"]
 EXPOSE 8080

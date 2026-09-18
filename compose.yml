@@ -6,6 +6,9 @@ services:
       context: .
       target: prod
     container_name: esky
+    # Run as the host user so files written to ./data are host-readable.
+    # 0:0 is the default only so the file works without a .env.
+    user: "${ESKY_UID:-0}:${ESKY_GID:-0}"
     ports:
       # Bind to the LAN interface explicitly. Per-profile bearer tokens landed
       # in Phase 1.5, so LAN exposure is supported — but issue tokens before
@@ -30,14 +33,15 @@ services:
       context: .
       target: dev
     profiles: ["dev"]
+    user: "${ESKY_UID:-0}:${ESKY_GID:-0}"
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
       - esky-models:/models
     environment:
       PYTHONHASHSEED: "0"
-      # The container runs as root against bind-mounted source; without this
-      # it litters root-owned __pycache__ dirs the host user cannot delete.
+      # Harmless once the container runs as the host user, but keeps the
+      # source tree clean of stray __pycache__ dirs either way.
       PYTHONDONTWRITEBYTECODE: "1"
       ESKY_DATA_DIR: /tmp/esky-data
 
