@@ -39,7 +39,7 @@ def test_stats_for_unknown_profile_is_401(client):
 
 
 def test_unknown_mcp_profile_is_401(client):
-    # Was 404 before tokens; a distinct 404 would leak which profiles exist.
+    # A distinct 404 would leak which profiles exist.
     assert client.post("/mcp/nope").status_code == 401
 
 

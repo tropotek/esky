@@ -70,8 +70,8 @@ def query_summary(conn: sqlite3.Connection, days: int = 30, top: int = 10,
 
     `zero_match` counts searches that handed the agent nothing, which is
     readable from `returned_count` on every row. `matched_count` is finer but
-    is NULL on rows written before it existed, so those are reported as
-    `unknown_matched` rather than folded into either side.
+    may be NULL, so those rows are reported as `unknown_matched` rather than
+    folded into either side.
     """
     start, end = _window(days, now)
     lo, hi = start.isoformat(), end.isoformat() + "￿"
@@ -152,8 +152,8 @@ def fact_stats(conn: sqlite3.Connection, days: int = 30, top: int = 10,
                now: str | None = None) -> dict:
     """What the store holds: size, mix, and how it grew over the window.
 
-    `facts` and `retired` keep the names the endpoint has always returned;
-    everything else is additive, so an older client reading this still works.
+    `facts` and `retired` count the whole store; `kinds` and `top_tags`
+    describe the live facts in it, and `daily` only the window.
     """
     start, end = _window(days, now)
     lo, hi = start.isoformat(), end.isoformat() + "￿"

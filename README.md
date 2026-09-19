@@ -132,15 +132,8 @@ like a server that is broken.
 ## The name
 
 An esky is what Australians call a cool box — the one everybody brings to the
-shared thing, that keeps what you put in it. It is a **code name**: chosen
-because it describes the job better than `ai-mem` did, not because it is a
-brand. If this ever goes past the LAN it gets revisited.
+shared thing, that keeps what you put in it. It is a **code name**, chosen
+because it describes the job, not a brand. If this ever goes past the LAN it
+gets revisited.
 
-Prior to 2026-09-06 the project was `ai-mem`, and every environment variable
-carried an `AI_MEM_` prefix. Those are gone — only `ESKY_*` is read, and a
-stale `.env` will start the server on `127.0.0.1:8080` instead of your LAN
-address.
 
-Tokens issued before the rename begin with `aimem_` rather than `esky_`. They
-keep working — only the whole string's hash is ever compared, and the prefix
-carries no meaning — so reissue for tidiness, not out of necessity.

@@ -56,9 +56,8 @@ curl -H "Authorization: Bearer $ESKY_TOKEN" \
 ```
 
 `limit` defaults to 50 and accepts 1–500; anything else is a `400`, because a
-negative `LIMIT` means "no limit" to SQLite and would quietly defeat the cap.
-Rows written before `matched_count` existed carry `null` for it rather than a
-guess.
+negative `LIMIT` means "no limit" to SQLite and would quietly defeat the cap. A
+row whose `matched_count` is unknown carries `null` rather than a guess.
 
 The log is per profile and behind the same token as everything else, so the
 `work` log is not readable with the `personal` token. It is REST-only and not
@@ -89,9 +88,9 @@ curl -H "Authorization: Bearer $ESKY_TOKEN" \
 ```
 
 `zero_match` counts searches that handed the caller nothing, which every row can
-answer. `unknown_matched` counts rows written before `matched_count` existed —
-reported separately rather than folded in, since counting them as misses would
-invent evidence that memory failed. `daily` covers every day in the window,
+answer. `unknown_matched` counts rows carrying no `matched_count` — reported
+separately rather than folded in, since counting them as misses would invent
+evidence that memory failed. `daily` covers every day in the window,
 including the quiet ones, so a chart drawn from it has no false gaps.
 
 `/api/{profile}/stats` takes the same `days` and returns the store's shape

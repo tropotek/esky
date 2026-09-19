@@ -26,8 +26,8 @@ def log_query(conn: sqlite3.Connection, query: str, hits,
     `matched` is how many facts the search found before `limit` truncated it.
     Without it a query that matched plenty is indistinguishable from one that
     matched nothing, since the stored count can be no larger than the limit.
-    It is optional because rows written before it existed cannot supply it, and
-    an unknown count is recorded as NULL rather than guessed at.
+    It is optional, and a caller that cannot supply it leaves NULL rather than
+    a guess.
 
     Failures are not swallowed. This is one INSERT into a local table, so the
     only way it fails is a database that is already broken — and hiding that

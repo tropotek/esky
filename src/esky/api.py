@@ -46,8 +46,8 @@ def build_api(registry) -> Starlette:
     async def stats(request):
         """What the store holds, plus the mix and growth behind those counts.
 
-        `facts` and `retired` are what this endpoint has always returned and
-        keep their meaning; the aggregates are additive.
+        `facts` and `retired` count live and retired facts across the whole
+        store; everything else is scoped to the `days` window.
         """
         name = request.path_params["profile"]
         if not authorize(registry, name, request.headers.get("authorization")):
