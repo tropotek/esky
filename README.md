@@ -69,6 +69,11 @@ curl -s http://127.0.0.1:8011/health     # -> {"status":"ok"}
 The first build downloads the embedding model into the image, so expect a few
 minutes. Subsequent builds are cached.
 
+Esky serves plain HTTP and issues no certificates: it is built for a network
+you control. If you want HTTPS, or you want to reach it from outside, put a
+reverse proxy in front or extend your private network — see
+[security](docs/security.md#traffic-is-not-encrypted).
+
 ## Set up a profile
 
 Create one profile per context you want kept separate — `work`, `personal`,
@@ -126,7 +131,7 @@ like a server that is broken.
 | [Connecting an agent](docs/connecting.md) | Same machine and across the LAN, the `CLAUDE.md` instruction, multiple profiles, other MCP clients |
 | [Tools and facts](docs/tools.md) | The five tools, fact kinds, the query log |
 | [Operations](docs/operations.md) | CLI, configuration, rotating a token, troubleshooting |
-| [Security](docs/security.md) | The token model, why unknown profiles return 401, backups |
+| [Security](docs/security.md) | The token model, why unknown profiles return 401, HTTPS via a reverse proxy, backups |
 | [Development](docs/development.md) | Running the tests, rebuilding the containers |
 
 ## The name

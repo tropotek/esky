@@ -103,6 +103,34 @@ else needs it in the system prompt. The wording is not special; what matters is
 that something instructs the agent to search before assuming and write when it
 learns.
 
+## Through a reverse proxy
+
+If you have put a proxy in front for HTTPS (see
+[traffic is not encrypted](security.md#traffic-is-not-encrypted)), nothing
+changes except the URL — the profile path and the header are the same:
+
+```bash
+claude mcp add -s user --transport http esky \
+  https://esky.example.com/mcp/personal \
+  --header "Authorization: Bearer $TOKEN"
+```
+
+Check it from the client the same way, before involving Claude:
+
+```bash
+curl -m 5 -H "Authorization: Bearer $TOKEN" \
+  https://esky.example.com/api/profiles
+```
+
+A `401` here when the same token works against the plain address means the
+proxy is dropping the `Authorization` header, not that the token is wrong.
+
+This only works with a certificate your client already trusts, which is what
+Caddy's automatic issuance gives you. A self-signed certificate is rejected by
+default and every client machine has to be told to trust it separately — if you
+are reaching for one of those, a private network like Tailscale is less work
+and ends up more secure.
+
 ## Multiple accounts or machines
 
 Give each its own profile and token:
