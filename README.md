@@ -108,23 +108,25 @@ claude mcp add -s user --transport http esky \
   --header "Authorization: Bearer $TOKEN"
 ```
 
-Restart Claude and run `/mcp` — `esky` should show as connected, with five
-tools.
+Restart the client — `esky` should show as connected, with five tools (`/mcp`
+in Claude Code).
 
 **That is not the last step.** An agent with the tools connected still will
-not use them on its own; it needs an instruction in your global `CLAUDE.md`
-saying to search before assuming and write when it learns something durable.
+not use them on its own; it needs an instruction in your client's global
+standing-instructions file — `~/.claude/CLAUDE.md` for Claude Code, `AGENTS.md`
+for most others — saying to search before assuming and write when it learns
+something durable.
 Without it the store is written to and never read from, which looks exactly
 like a server that is broken.
 
-→ **[Connecting an agent](docs/connecting.md)** — the LAN setup, the
-`CLAUDE.md` snippet to paste, and other MCP clients.
+→ **[Connecting an agent](docs/connecting.md)** — the LAN setup, the snippet
+to paste and where each client keeps it, and other MCP clients.
 
 ## Documentation
 
 | Page | Covers |
 |---|---|
-| [Connecting an agent](docs/connecting.md) | Same machine and across the LAN, the `CLAUDE.md` instruction, multiple profiles, other MCP clients |
+| [Connecting an agent](docs/connecting.md) | Same machine and across the LAN, the standing instruction that makes memory get used, multiple profiles, other MCP clients |
 | [Tools and facts](docs/tools.md) | The five tools, fact kinds, the query log |
 | [Operations](docs/operations.md) | CLI, configuration, rotating a token, troubleshooting |
 | [Security](docs/security.md) | The token model, why unknown profiles return 401, HTTPS via a reverse proxy, backups |

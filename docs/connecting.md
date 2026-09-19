@@ -7,7 +7,9 @@ without which the store is written to but never read from.
 These examples use `personal` as the profile and `$TOKEN` as its bearer token.
 See [Set up a profile](../README.md#set-up-a-profile) for both.
 
-## Claude Code, same machine
+## Same machine
+
+Claude Code registers a server from the command line:
 
 ```bash
 claude mcp add -s user --transport http esky \
@@ -28,10 +30,13 @@ here too, not `127.0.0.1`.** Docker publishes the port on one interface only,
 so binding to `192.168.1.10` makes loopback unreachable — a local client gets a
 connection refused that looks nothing like a config error.
 
-The server is only picked up by **new** sessions. Restart Claude, then run
-`/mcp` to confirm.
+Other clients take the same three values — URL, header, alias — from a JSON
+config file instead; see [Other MCP clients](#other-mcp-clients).
 
-## Claude Code, from another machine on the LAN
+The server is only picked up by **new** sessions. Restart the client, then
+confirm it is connected (`/mcp` in Claude Code).
+
+## From another machine on the LAN
 
 First expose the port on the host. In `.env` on the **server**:
 
@@ -49,7 +54,7 @@ If the host runs a firewall, allow the port from your subnet only:
 sudo ufw allow from 192.168.1.0/24 to any port 8011 proto tcp
 ```
 
-From the **client** machine, verify reachability before involving Claude:
+From the **client** machine, verify reachability before involving an agent:
 
 ```bash
 curl -m 5 -H "Authorization: Bearer $TOKEN" \
@@ -64,9 +69,8 @@ claude mcp add -s user --transport http esky \
   --header "Authorization: Bearer $TOKEN"
 ```
 
-Start a new session and run `/mcp` — `esky` should show as connected, with five
-tools. Test it with *"search your memory for X"*, or *"remember that I prefer
-X"*.
+Start a new session — `esky` should show as connected, with five tools. Test
+it with *"search your memory for X"*, or *"remember that I prefer X"*.
 
 ## Tell your agent to use it
 
@@ -75,8 +79,9 @@ Phase 1 gives an agent tools, not reflexes: it searches memory when you ask, or
 when its instructions tell it to, and otherwise records facts it will never
 read back. Automatic recall at session start is Phase 2.
 
-Until then, put this in your **global** `CLAUDE.md` — `~/.claude/CLAUDE.md`, so
-it applies in every project, not just the one you set the server up in:
+Until then, put this in whichever file your client loads as standing
+instructions, at the **global** level so it applies in every project and not
+just the one you set the server up in:
 
 ```markdown
 ## Memory
@@ -93,15 +98,22 @@ The last paragraph matters as much as the first. Without it an agent writes
 down what it did this afternoon, and a store full of session narration is worth
 less than an empty one — you stop trusting what comes out of it.
 
-Do this on **every machine** that connects. The instruction lives on the client,
-not on the server, so a second machine is silent until it gets its own copy.
-If you run more than one Claude config directory (a separate work profile, say),
-each has its own `CLAUDE.md` and each needs the snippet.
+Where that file lives depends on the client:
 
-Other clients have their own equivalent — Codex reads `AGENTS.md`, and anything
-else needs it in the system prompt. The wording is not special; what matters is
-that something instructs the agent to search before assuming and write when it
-learns.
+| Client | Global instruction file |
+|---|---|
+| Claude Code | `~/.claude/CLAUDE.md` |
+| opencode | `~/.config/opencode/AGENTS.md`, falling back to `~/.claude/CLAUDE.md` if that does not exist |
+| Codex | `AGENTS.md`, in the repository or in its config directory |
+| Anything else | its own standing-instructions file, or the system prompt |
+
+The wording is not special; what matters is that something instructs the agent
+to search before assuming and write when it learns.
+
+Do this on **every machine** that connects. The instruction lives on the client,
+not on the server, so a second machine is silent until it gets its own copy. If
+you run more than one config directory for the same client (a separate work
+profile, say), each has its own file and each needs the snippet.
 
 ## Through a reverse proxy
 
@@ -115,7 +127,7 @@ claude mcp add -s user --transport http esky \
   --header "Authorization: Bearer $TOKEN"
 ```
 
-Check it from the client the same way, before involving Claude:
+Check it from the client the same way, before involving an agent:
 
 ```bash
 curl -m 5 -H "Authorization: Bearer $TOKEN" \
@@ -140,8 +152,8 @@ docker compose exec esky esky profile create work
 docker compose exec esky esky token issue work
 ```
 
-Point that client at `/mcp/work`. Two Claude accounts on one machine, or a
-laptop and a desktop, can share a profile by sharing its token, or stay
+Point that client at `/mcp/work`. Two accounts on one machine, or a laptop and
+a desktop, can share a profile by sharing its token, or stay
 separate by having their own. The server enforces the boundary; the agent
 cannot cross it by asking.
 

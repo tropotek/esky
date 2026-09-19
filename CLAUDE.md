@@ -1,6 +1,9 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Standing instructions for any coding agent working in this repository. Claude
+Code, opencode and other clients that fall back to `CLAUDE.md` all read this
+file; there is deliberately no `AGENTS.md`, because a client that finds one
+stops looking and would miss this.
 
 ## What this is
 
