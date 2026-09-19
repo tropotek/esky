@@ -125,7 +125,7 @@ async def test_forget_echoes_the_reason_it_recorded(mcp, as_work):
     call that recorded it is the only place it can be confirmed."""
     async with Client(mcp) as client:
         written = await client.call_tool("memory_write", {
-            "text": "the server lives at 192.168.0.5", "kind": "project",
+            "text": "the server lives at 192.168.1.5", "kind": "project",
             "tags": []})
         result = await client.call_tool("memory_forget", {
             "uid": written.data["uid"], "reason": "host was reassigned"})

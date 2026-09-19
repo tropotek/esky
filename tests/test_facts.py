@@ -134,7 +134,7 @@ def test_text_change_can_replace_the_title(repo):
 
 
 def test_retire_records_its_reason(repo):
-    f = repo.write("the server lives at 192.168.0.5", "project", [])
+    f = repo.write("the server lives at 192.168.1.5", "project", [])
     repo.retire(f.uid, reason="host was reassigned")
     assert repo.get(f.uid).retired_reason == "host was reassigned"
 
