@@ -54,6 +54,14 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
 
         `title` is an optional short label for scanning a list of facts; omit
         it when the text is already terse.
+
+        `text` is stored and returned verbatim. Keep a short fact to one
+        plain line. For anything longer, markdown is preferred and multi-line
+        is fine: use a list for a set of items, a code fence for a command or
+        a snippet, and headings only if the fact really has sections. Markup
+        is structure, not decoration — it earns its place by making the fact
+        easier to read back, so never bold a phrase for emphasis or wrap a
+        one-line fact in a heading.
         """
         with _repo() as (_, repo):
             return asdict(
