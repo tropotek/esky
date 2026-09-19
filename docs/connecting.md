@@ -1,0 +1,141 @@
+# Connecting an agent
+
+Registering the server is half the setup. The other half is telling your agent
+to use it — see [Tell your agent to use it](#tell-your-agent-to-use-it) below,
+without which the store is written to but never read from.
+
+These examples use `personal` as the profile and `$TOKEN` as its bearer token.
+See [Set up a profile](../README.md#set-up-a-profile) for both.
+
+## Claude Code, same machine
+
+```bash
+claude mcp add -s user --transport http esky \
+  http://127.0.0.1:8011/mcp/personal \
+  --header "Authorization: Bearer $TOKEN"
+```
+
+`-s user` registers it in your user config so it is available in every
+project. Drop it to add the server to the current project only.
+
+`esky` there is just the local alias for the server — call it anything you
+prefer. It shows up in `/mcp`; the tool names (`memory_search` and friends)
+are fixed either way. Keeping the same alias on every machine saves
+reconciling two names for one server later.
+
+**If you have already set `ESKY_BIND` to a LAN address, use that address
+here too, not `127.0.0.1`.** Docker publishes the port on one interface only,
+so binding to `192.168.0.7` makes loopback unreachable — a local client gets a
+connection refused that looks nothing like a config error.
+
+The server is only picked up by **new** sessions. Restart Claude, then run
+`/mcp` to confirm.
+
+## Claude Code, from another machine on the LAN
+
+First expose the port on the host. In `.env` on the **server**:
+
+```ini
+ESKY_BIND=192.168.0.7    # the server's LAN address
+```
+
+```bash
+docker compose up -d
+```
+
+If the host runs a firewall, allow the port from your subnet only:
+
+```bash
+sudo ufw allow from 192.168.0.0/24 to any port 8011 proto tcp
+```
+
+From the **client** machine, verify reachability before involving Claude:
+
+```bash
+curl -m 5 -H "Authorization: Bearer $TOKEN" \
+  http://192.168.0.7:8011/api/profiles
+```
+
+Once that returns your profile, add the server:
+
+```bash
+claude mcp add -s user --transport http esky \
+  http://192.168.0.7:8011/mcp/personal \
+  --header "Authorization: Bearer $TOKEN"
+```
+
+Start a new session and run `/mcp` — `esky` should show as connected, with five
+tools. Test it with *"search your memory for X"*, or *"remember that I prefer
+X"*.
+
+## Tell your agent to use it
+
+**A connected server that nobody calls looks exactly like a broken one.**
+Phase 1 gives an agent tools, not reflexes: it searches memory when you ask, or
+when its instructions tell it to, and otherwise records facts it will never
+read back. Automatic recall at session start is Phase 2.
+
+Until then, put this in your **global** `CLAUDE.md` — `~/.claude/CLAUDE.md`, so
+it applies in every project, not just the one you set the server up in:
+
+```markdown
+## Memory
+
+Before assuming anything about how I work, what a project uses, or why a past
+decision was made, call `memory_search`. When you learn something durable that
+would be useful in a future session, call `memory_write`.
+
+Durable means it outlives this conversation. Do not write transient task state,
+or anything the repository already records.
+```
+
+The last paragraph matters as much as the first. Without it an agent writes
+down what it did this afternoon, and a store full of session narration is worth
+less than an empty one — you stop trusting what comes out of it.
+
+Do this on **every machine** that connects. The instruction lives on the client,
+not on the server, so a second machine is silent until it gets its own copy.
+If you run more than one Claude config directory (a separate work profile, say),
+each has its own `CLAUDE.md` and each needs the snippet.
+
+Other clients have their own equivalent — Codex reads `AGENTS.md`, and anything
+else needs it in the system prompt. The wording is not special; what matters is
+that something instructs the agent to search before assuming and write when it
+learns.
+
+## Multiple accounts or machines
+
+Give each its own profile and token:
+
+```bash
+docker compose exec esky esky profile create work
+docker compose exec esky esky token issue work
+```
+
+Point that client at `/mcp/work`. Two Claude accounts on one machine, or a
+laptop and a desktop, can share a profile by sharing its token, or stay
+separate by having their own. The server enforces the boundary; the agent
+cannot cross it by asking.
+
+## Other MCP clients
+
+Any client that speaks MCP streamable HTTP with a custom header works. The
+endpoint is `http://<host>:<port>/mcp/<profile>` and the header is
+`Authorization: Bearer <token>`. For clients configured by JSON:
+
+```json
+{
+  "mcpServers": {
+    "esky": {
+      "type": "http",
+      "url": "http://192.168.0.7:8011/mcp/personal",
+      "headers": { "Authorization": "Bearer esky_..." }
+    }
+  }
+}
+```
+
+---
+
+Next: [the five tools and what a fact looks like](tools.md) ·
+[troubleshooting a connection](operations.md#troubleshooting)

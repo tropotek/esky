@@ -34,7 +34,9 @@ memory over streamable HTTP; each context is a separate SQLite file.
   `ideas-backlog.md` holds loose ends and open questions.
 
 Specs and plans go in `_notes/docs/`, research and speculative ideas in
-`_notes/research/`, never in a committed `docs/`. Skip the
+`_notes/research/`, never in a committed `docs/`. The tracked `docs/` folder is
+a different thing — user-facing documentation for whoever runs the server, split
+out of the README. Design thinking does not go there. Skip the
 "commit the design doc" step that the brainstorming and writing-plans skills
 ask for; the folder is deliberately untracked.
 
