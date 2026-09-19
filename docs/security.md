@@ -49,7 +49,7 @@ that is one block:
 
 ```caddyfile
 esky.example.com {
-    reverse_proxy 192.168.0.7:8011
+    reverse_proxy 192.168.1.10:8011
 }
 ```
 

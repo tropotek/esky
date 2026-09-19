@@ -50,7 +50,7 @@ docker compose exec esky esky token issue personal
 # on every machine connected to that profile
 claude mcp remove -s user esky
 claude mcp add -s user --transport http esky \
-  http://192.168.0.7:8011/mcp/personal \
+  http://192.168.1.10:8011/mcp/personal \
   --header "Authorization: Bearer <new-token>"
 ```
 

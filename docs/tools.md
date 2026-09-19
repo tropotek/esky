@@ -45,7 +45,7 @@ not exist unless it is captured as it happens.
 
 ```bash
 curl -H "Authorization: Bearer $ESKY_TOKEN" \
-  http://192.168.0.7:8011/api/personal/queries?limit=20
+  http://192.168.1.10:8011/api/personal/queries?limit=20
 ```
 
 ```json
@@ -73,7 +73,7 @@ claims.
 
 ```bash
 curl -H "Authorization: Bearer $ESKY_TOKEN" \
-  "http://192.168.0.7:8011/api/personal/queries/summary?days=30"
+  "http://192.168.1.10:8011/api/personal/queries/summary?days=30"
 ```
 
 ```json

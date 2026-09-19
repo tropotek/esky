@@ -25,7 +25,7 @@ reconciling two names for one server later.
 
 **If you have already set `ESKY_BIND` to a LAN address, use that address
 here too, not `127.0.0.1`.** Docker publishes the port on one interface only,
-so binding to `192.168.0.7` makes loopback unreachable — a local client gets a
+so binding to `192.168.1.10` makes loopback unreachable — a local client gets a
 connection refused that looks nothing like a config error.
 
 The server is only picked up by **new** sessions. Restart Claude, then run
@@ -36,7 +36,7 @@ The server is only picked up by **new** sessions. Restart Claude, then run
 First expose the port on the host. In `.env` on the **server**:
 
 ```ini
-ESKY_BIND=192.168.0.7    # the server's LAN address
+ESKY_BIND=192.168.1.10    # the server's LAN address
 ```
 
 ```bash
@@ -46,21 +46,21 @@ docker compose up -d
 If the host runs a firewall, allow the port from your subnet only:
 
 ```bash
-sudo ufw allow from 192.168.0.0/24 to any port 8011 proto tcp
+sudo ufw allow from 192.168.1.0/24 to any port 8011 proto tcp
 ```
 
 From the **client** machine, verify reachability before involving Claude:
 
 ```bash
 curl -m 5 -H "Authorization: Bearer $TOKEN" \
-  http://192.168.0.7:8011/api/profiles
+  http://192.168.1.10:8011/api/profiles
 ```
 
 Once that returns your profile, add the server:
 
 ```bash
 claude mcp add -s user --transport http esky \
-  http://192.168.0.7:8011/mcp/personal \
+  http://192.168.1.10:8011/mcp/personal \
   --header "Authorization: Bearer $TOKEN"
 ```
 
@@ -156,7 +156,7 @@ endpoint is `http://<host>:<port>/mcp/<profile>` and the header is
   "mcpServers": {
     "esky": {
       "type": "http",
-      "url": "http://192.168.0.7:8011/mcp/personal",
+      "url": "http://192.168.1.10:8011/mcp/personal",
       "headers": { "Authorization": "Bearer esky_..." }
     }
   }

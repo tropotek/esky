@@ -60,7 +60,7 @@ docker compose exec esky esky token status <profile>
 docker compose exec esky esky profile migrate <name>      # after a schema bump
 docker compose exec esky esky profile reindex <name>      # after an embedding change
 curl -H "Authorization: Bearer $TOK" \
-  http://192.168.0.7:8011/api/<profile>/queries           # what was asked of memory
+  http://192.168.1.10:8011/api/<profile>/queries           # what was asked of memory
 ```
 
 The `esky` service runs the **baked image**, not the source tree — only `./data`
