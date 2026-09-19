@@ -39,13 +39,14 @@ ask for; the folder is deliberately untracked.
 Everything runs in Docker. There is no local Python environment.
 
 ```bash
-docker compose run --rm test pytest -q                    # full suite (103 tests)
+docker compose run --rm test pytest -q                    # full suite (115 tests)
 docker compose run --rm test pytest tests/test_search.py -v
 docker compose run --rm test pytest tests/test_facts.py::test_write_returns_fact_with_uid -v
 docker compose build test                                 # only when deps change
 docker compose up -d                                      # run the server
 docker compose exec esky esky profile create <name>
 docker compose exec esky esky token issue <profile>
+docker compose exec esky esky profile migrate <name>   # after a schema bump
 ```
 
 Source is bind-mounted into the dev container, so edits apply without a

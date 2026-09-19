@@ -77,3 +77,27 @@ def test_token_status_never_prints_the_token(data_dir, capsys):
 
 def test_token_without_subcommand_returns_error():
     assert main(["token"]) == 2
+
+
+def test_profile_migrate_brings_an_old_database_up_to_date(data_dir, capsys):
+    """connect() does not migrate, so a profile created before a schema bump
+    needs an explicit way up."""
+    from esky.db.connection import open_db
+    from esky.db.schema import _V1, SCHEMA_VERSION
+
+    c = open_db(data_dir / "old.db")
+    c.executescript(_V1)
+    c.execute("INSERT INTO meta(key, value) VALUES('schema_version', '1')")
+    c.commit()
+    c.close()
+
+    assert main(["profile", "migrate", "old"]) == 0
+    c = open_db(data_dir / "old.db")
+    assert c.execute("SELECT value FROM meta WHERE key='schema_version'"
+                     ).fetchone()[0] == str(SCHEMA_VERSION)
+    c.close()
+    assert "old" in capsys.readouterr().out
+
+
+def test_profile_migrate_on_unknown_profile_errors(data_dir):
+    assert main(["profile", "migrate", "nope"]) == 2

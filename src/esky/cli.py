@@ -3,6 +3,7 @@ import sys
 
 from esky.config import load_settings
 from esky.auth import issue_token, token_issued_at
+from esky.db.schema import SCHEMA_VERSION, migrate
 from esky.profiles import InvalidProfileName, ProfileRegistry, UnknownProfile
 
 
@@ -15,6 +16,9 @@ def main(argv: list[str] | None = None) -> int:
     create = psub.add_parser("create", help="create a new profile database")
     create.add_argument("name")
     psub.add_parser("list", help="list existing profiles")
+    p_migrate = psub.add_parser(
+        "migrate", help="bring an existing profile database up to date")
+    p_migrate.add_argument("name")
 
     token = sub.add_parser("token", help="manage profile access tokens")
     tsub = token.add_subparsers(dest="subcommand")
@@ -39,6 +43,18 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"invalid profile name: {args.name!r}", file=sys.stderr)
                 return 2
             print(f"created {path}")
+            return 0
+        if args.subcommand == "migrate":
+            try:
+                conn = registry.connect(args.name)
+            except (UnknownProfile, InvalidProfileName):
+                print(f"unknown profile: {args.name!r}", file=sys.stderr)
+                return 2
+            try:
+                migrate(conn)
+            finally:
+                conn.close()
+            print(f"migrated {args.name} to schema version {SCHEMA_VERSION}")
             return 0
         if args.subcommand == "list":
             for name in registry.list():

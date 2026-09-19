@@ -11,6 +11,7 @@ _FTS_SAFE = re.compile(r"[^\w\s]")
 @dataclass(frozen=True)
 class SearchHit:
     uid: str
+    title: str | None
     text: str
     kind: str
     tags: list[str]
@@ -96,7 +97,7 @@ def hybrid_search(conn, embedder, query: str, limit: int = 8,
         params += tags
 
     hits = [
-        SearchHit(uid=r["uid"], text=r["text"], kind=r["kind"],
+        SearchHit(uid=r["uid"], title=r["title"], text=r["text"], kind=r["kind"],
                   tags=json.loads(r["tags"]), layer="facts", score=scores[r["id"]])
         for r in conn.execute(sql, params)
     ]

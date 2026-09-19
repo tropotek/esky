@@ -46,3 +46,33 @@ def test_migrate_is_idempotent(conn):
 
 def test_wal_mode_enabled(conn):
     assert conn.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
+
+
+def test_v1_database_gains_a_title_column_and_rebuilt_fts(tmp_path):
+    """A profile written before v2 must migrate in place: the column appears,
+    the FTS table is rebuilt with it, and live rows are back in the index."""
+    import sqlite_vec
+
+    from esky.db.schema import _V1
+
+    c = open_db(tmp_path / "old.db")
+    c.executescript(_V1)
+    c.execute("INSERT INTO meta(key, value) VALUES('schema_version', '1')")
+    c.execute(
+        "INSERT INTO facts(uid, text, kind, tags, source, created_at, updated_at) "
+        "VALUES ('u1', 'the server listens on 8080', 'project', '[\"infra\"]', "
+        "'human', 'now', 'now')")
+    c.execute("INSERT INTO facts_fts(rowid, text, tags) "
+              "VALUES (1, 'the server listens on 8080', 'infra')")
+    c.execute("INSERT INTO facts_vec(fact_id, embedding) VALUES (?, ?)",
+              (1, sqlite_vec.serialize_float32([0.1] * 384)))
+    c.commit()
+
+    migrate(c)
+
+    assert "title" in {r[1] for r in c.execute("PRAGMA table_info(facts)")}
+    assert "title" in {r[1] for r in c.execute("PRAGMA table_info(facts_fts)")}
+    assert c.execute("SELECT count(*) FROM facts_fts WHERE facts_fts "
+                     "MATCH '\"8080\"'").fetchone()[0] == 1
+    assert c.execute("SELECT count(*) FROM facts_vec").fetchone()[0] == 1
+    c.close()

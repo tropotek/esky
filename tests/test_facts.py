@@ -96,3 +96,37 @@ def test_recent_filters_by_research_kind(repo):
     repo.write("a finding", "research", [])
     repo.write("a project note", "project", [])
     assert [f.text for f in repo.recent(kind="research")] == ["a finding"]
+
+
+def test_write_stores_an_optional_title(repo):
+    f = repo.write("the server listens on 8080", "project", [], title="server port")
+    assert f.title == "server port"
+    assert repo.get(f.uid).title == "server port"
+
+
+def test_write_without_a_title_leaves_it_unset(repo):
+    assert repo.write("untitled fact", "project", []).title is None
+
+
+def test_title_only_update_keeps_the_same_uid(repo):
+    original = repo.write("port is 8080", "project", [])
+    updated = repo.update(original.uid, title="server port")
+    assert updated.uid == original.uid
+    assert updated.title == "server port"
+
+
+def test_title_only_update_reindexes_fts(repo, conn):
+    f = repo.write("port is 8080", "project", [])
+    repo.update(f.uid, title="server port")
+    assert [r[0] for r in conn.execute("SELECT title FROM facts_fts")] == ["server port"]
+
+
+def test_text_change_carries_the_title_forward(repo):
+    original = repo.write("port is 8080", "project", [], title="server port")
+    assert repo.update(original.uid, text="port is 9090").title == "server port"
+
+
+def test_text_change_can_replace_the_title(repo):
+    original = repo.write("port is 8080", "project", [], title="server port")
+    updated = repo.update(original.uid, text="port is 9090", title="listen port")
+    assert updated.title == "listen port"

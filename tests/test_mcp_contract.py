@@ -78,3 +78,11 @@ async def test_recent_lists_written_facts(mcp, as_work):
             "text": "uses docker for everything", "kind": "preference", "tags": []})
         result = await client.call_tool("memory_recent", {})
     assert "docker" in str(result.content)
+
+
+async def test_write_accepts_a_title(mcp, as_work):
+    async with Client(mcp) as client:
+        written = await client.call_tool("memory_write", {
+            "text": "the esky server listens on 8080", "kind": "project",
+            "tags": [], "title": "server port"})
+    assert written.data["title"] == "server port"

@@ -75,3 +75,15 @@ def test_vector_cutoff_excludes_unrelated_matches(seeded):
 def test_raising_max_distance_readmits_them(seeded):
     conn, emb = seeded
     assert hybrid_search(conn, emb, "zzzznonexistenttoken", max_distance=2.0)
+
+
+def test_title_words_are_searchable(conn, embedder):
+    repo = FactsRepo(conn, embedder)
+    repo.write("it listens on 8080", "project", [], title="server port")
+    hits = hybrid_search(conn, embedder, "server port")
+    assert [h.title for h in hits] == ["server port"]
+
+
+def test_hits_carry_a_null_title_when_unset(seeded):
+    conn, emb = seeded
+    assert all(h.title is None for h in hybrid_search(conn, emb, "docker compose"))

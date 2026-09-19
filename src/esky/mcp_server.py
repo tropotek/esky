@@ -35,7 +35,8 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
                 rrf_k=settings.rrf_k, max_distance=settings.max_distance)]
 
     @mcp.tool
-    def memory_write(text: str, kind: str, tags: list[str] | None = None) -> dict:
+    def memory_write(text: str, kind: str, tags: list[str] | None = None,
+                     title: str | None = None) -> dict:
         """Record one durable fact worth remembering in future sessions.
 
         Write things that stay true beyond this conversation. Do not write
@@ -50,17 +51,24 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
                        stated; use this rather than `reference` when the value
                        is the finding itself, not where it lives
           decision   - a choice made and the reasoning behind it
+
+        `title` is an optional short label for scanning a list of facts; omit
+        it when the text is already terse.
         """
         with _repo() as (_, repo):
-            return asdict(repo.write(text, kind, tags or [], source="agent"))
+            return asdict(
+                repo.write(text, kind, tags or [], source="agent", title=title))
 
     @mcp.tool
     def memory_update(uid: str, text: str | None = None, kind: str | None = None,
-                      tags: list[str] | None = None) -> dict:
+                      tags: list[str] | None = None,
+                      title: str | None = None) -> dict:
         """Amend an existing fact. Changing its text retires the old version
-        and records the new one as superseding it, so history is preserved."""
+        and records the new one as superseding it, so history is preserved.
+        Changing only the title, kind or tags amends it in place."""
         with _repo() as (_, repo):
-            return asdict(repo.update(uid, text=text, kind=kind, tags=tags))
+            return asdict(
+                repo.update(uid, text=text, kind=kind, tags=tags, title=title))
 
     @mcp.tool
     def memory_forget(uid: str, reason: str | None = None) -> dict:
