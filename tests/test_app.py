@@ -60,3 +60,37 @@ def test_mcp_endpoint_is_reachable_for_known_profile(client):
     # No MCP session headers, so the MCP app rejects it — but with a protocol
     # error, which proves routing reached the MCP app rather than 404ing.
     assert client.post("/mcp/work").status_code != 404
+
+
+def test_stats_reports_the_kind_mix(client):
+    body = client.get("/api/work/stats").json()
+    assert body["kinds"] == []
+    assert body["daily"] != []
+
+
+def test_stats_rejects_a_nonsense_window(client):
+    assert client.get("/api/work/stats?days=0").status_code == 400
+
+
+def test_queries_summary_for_known_profile(client):
+    body = client.get("/api/work/queries/summary?days=7").json()
+    assert body["profile"] == "work"
+    assert body["days"] == 7
+    assert body["totals"]["searches"] == 0
+    assert len(body["daily"]) == 7
+
+
+def test_queries_summary_defaults_to_thirty_days(client):
+    assert client.get("/api/work/queries/summary").json()["days"] == 30
+
+
+def test_queries_summary_window_is_capped(client):
+    assert client.get("/api/work/queries/summary?days=9999").json()["days"] == 365
+
+
+def test_queries_summary_rejects_a_nonsense_window(client):
+    assert client.get("/api/work/queries/summary?days=nope").status_code == 400
+
+
+def test_queries_summary_for_unknown_profile_is_401(client):
+    assert client.get("/api/nope/queries/summary").status_code == 401

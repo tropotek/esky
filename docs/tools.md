@@ -65,6 +65,44 @@ The log is per profile and behind the same token as everything else, so the
 an MCP tool: it is for you reviewing the store, and every tool description
 costs context in every agent session.
 
+## Aggregates, for charting
+
+Two endpoints summarise a profile over a window of days rather than listing
+rows. They exist because the listing above is capped at the 500 newest rows, so
+anything counted from it describes an unknown period rather than the one it
+claims.
+
+```bash
+curl -H "Authorization: Bearer $ESKY_TOKEN" \
+  "http://192.168.0.7:8011/api/personal/queries/summary?days=30"
+```
+
+```json
+{"profile": "personal", "days": 30, "from": "2026-08-21", "to": "2026-09-19",
+ "totals": {"searches": 142, "zero_match": 19, "unknown_matched": 0,
+            "distinct_queries": 96},
+ "daily": [{"date": "2026-08-21", "searches": 4, "zero_match": 1}],
+ "match_buckets": [{"label": "0", "count": 19}],
+ "top_queries": [{"query": "how do we deploy", "count": 3, "zero_match": 3}],
+ "top_tags": [{"tag": "infra", "count": 11}],
+ "top_facts": [{"uid": "Ax3f…", "count": 7, "title": "Deployment"}]}
+```
+
+`zero_match` counts searches that handed the caller nothing, which every row can
+answer. `unknown_matched` counts rows written before `matched_count` existed —
+reported separately rather than folded in, since counting them as misses would
+invent evidence that memory failed. `daily` covers every day in the window,
+including the quiet ones, so a chart drawn from it has no false gaps.
+
+`/api/{profile}/stats` takes the same `days` and returns the store's shape
+alongside the counts it always returned: `facts` and `retired`, plus `kinds`,
+`top_tags`, `daily` (`created` and `retired` per day) and the `oldest` /
+`newest` timestamps it spans.
+
+Both take `days` in 1–365, defaulting to 30; anything else is a `400`.
+
+The eskyClient web UI draws all of this at `/metrics.php`.
+
 ---
 
 Next: [operations — CLI, configuration, tokens](operations.md) ·

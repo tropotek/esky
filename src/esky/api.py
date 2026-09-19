@@ -5,6 +5,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from esky.auth import UNAUTHORIZED_BODY, authorize
+from esky.metrics import fact_stats, query_summary
 from esky.querylog import recent_queries
 
 
@@ -43,18 +44,24 @@ def build_api(registry) -> Starlette:
         return JSONResponse({"profiles": granted})
 
     async def stats(request):
+        """What the store holds, plus the mix and growth behind those counts.
+
+        `facts` and `retired` are what this endpoint has always returned and
+        keep their meaning; the aggregates are additive.
+        """
         name = request.path_params["profile"]
         if not authorize(registry, name, request.headers.get("authorization")):
             return unauthorized()
+        try:
+            days = _positive_int(request.query_params.get("days", 30), 365)
+        except ValueError:
+            return JSONResponse({"error": "invalid days"}, status_code=400)
         conn = registry.connect(name)
         try:
-            facts = conn.execute(
-                "SELECT count(*) FROM facts WHERE retired_at IS NULL").fetchone()[0]
-            retired = conn.execute(
-                "SELECT count(*) FROM facts WHERE retired_at IS NOT NULL").fetchone()[0]
+            body = fact_stats(conn, days=days)
         finally:
             conn.close()
-        return JSONResponse({"profile": name, "facts": facts, "retired": retired})
+        return JSONResponse({"profile": name, **body})
 
     async def queries(request):
         """What has been asked of this profile's memory, newest first.
@@ -77,9 +84,31 @@ def build_api(registry) -> Starlette:
             conn.close()
         return JSONResponse({"profile": name, "queries": entries})
 
+    async def queries_summary(request):
+        """The same log, aggregated over a window rather than listed.
+
+        Aggregating server-side rather than in the client is what makes the
+        window honest: `/queries` is capped at 500 newest rows, so a chart
+        built from it would silently describe a shorter period than its label.
+        """
+        name = request.path_params["profile"]
+        if not authorize(registry, name, request.headers.get("authorization")):
+            return unauthorized()
+        try:
+            days = _positive_int(request.query_params.get("days", 30), 365)
+        except ValueError:
+            return JSONResponse({"error": "invalid days"}, status_code=400)
+        conn = registry.connect(name)
+        try:
+            body = query_summary(conn, days=days)
+        finally:
+            conn.close()
+        return JSONResponse({"profile": name, **body})
+
     return Starlette(routes=[
         Route("/health", health),
         Route("/api/profiles", profiles),
         Route("/api/{profile}/stats", stats),
         Route("/api/{profile}/queries", queries),
+        Route("/api/{profile}/queries/summary", queries_summary),
     ])
