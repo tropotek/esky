@@ -46,6 +46,13 @@ def test_hits_are_labelled_with_layer(seeded):
     assert all(h.layer == "facts" for h in hybrid_search(conn, emb, "docker"))
 
 
+def test_hits_carry_updated_at(seeded):
+    conn, emb = seeded
+    hits = hybrid_search(conn, emb, "docker")
+    assert hits
+    assert all(h.updated_at for h in hits)
+
+
 def test_scores_descend(seeded):
     conn, emb = seeded
     scores = [h.score for h in hybrid_search(conn, emb, "deployment infra")]

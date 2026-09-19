@@ -15,6 +15,7 @@ class SearchHit:
     text: str
     kind: str
     tags: list[str]
+    updated_at: str
     layer: str
     score: float
 
@@ -98,7 +99,8 @@ def hybrid_search(conn, embedder, query: str, limit: int = 8,
 
     hits = [
         SearchHit(uid=r["uid"], title=r["title"], text=r["text"], kind=r["kind"],
-                  tags=json.loads(r["tags"]), layer="facts", score=scores[r["id"]])
+                  tags=json.loads(r["tags"]), updated_at=r["updated_at"],
+                  layer="facts", score=scores[r["id"]])
         for r in conn.execute(sql, params)
     ]
     hits.sort(key=lambda h: h.score, reverse=True)
