@@ -115,12 +115,22 @@ in Claude Code).
 not use them on its own; it needs an instruction in your client's global
 standing-instructions file — `~/.claude/CLAUDE.md` for Claude Code, `AGENTS.md`
 for most others — saying to search before assuming and write when it learns
-something durable.
-Without it the store is written to and never read from, which looks exactly
-like a server that is broken.
+something durable. Without it the store is written to and never read from,
+which looks exactly like a server that is broken.
 
 → **[Connecting an agent](docs/connecting.md)** — the LAN setup, the snippet
 to paste and where each client keeps it, and other MCP clients.
+
+## Browse what is in there
+
+Esky itself has no interface beyond the tools and the REST endpoints.
+[**eskyClient**](https://github.com/tropotek/eskyClient) is a separate
+read-only web app that points at a running server: it lists memories newest
+first, searches them, shows one as raw Markdown or rendered, and charts what
+the store holds alongside what has been asked of it.
+
+It runs in its own container and needs only the profile's URL and bearer
+token — the same pair an agent uses. Nothing it does can change the store.
 
 ## Documentation
 
