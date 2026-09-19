@@ -10,10 +10,6 @@ Agents start every session cold. Esky is the box on the network they all
 reach into: put a fact in from the laptop, take it out from the desktop, and
 it is still there next week.
 
-**Phase 1** ships the curated layer: facts you and your agents record
-deliberately, retrieved by hybrid keyword + semantic search. Automatic
-transcript capture (Phase 2) and overnight distillation (Phase 3) come later.
-
 Nothing leaves your network. Embeddings run in-process on ONNX; there is no
 API key and no outbound call.
 
