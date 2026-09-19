@@ -86,3 +86,47 @@ async def test_write_accepts_a_title(mcp, as_work):
             "text": "the esky server listens on 8080", "kind": "project",
             "tags": [], "title": "server port"})
     assert written.data["title"] == "server port"
+
+
+async def test_search_is_logged(mcp, as_work, tmp_path):
+    from esky.querylog import recent_queries
+
+    async with Client(mcp) as client:
+        await client.call_tool("memory_write", {
+            "text": "the esky server listens on 8080", "kind": "project",
+            "tags": ["infra"]})
+        await client.call_tool("memory_search", {"query": "which port"})
+
+    conn = ProfileRegistry(tmp_path).connect("work")
+    try:
+        entries = recent_queries(conn)
+    finally:
+        conn.close()
+    assert [e.query for e in entries] == ["which port"]
+
+
+async def test_a_search_finding_nothing_is_logged(mcp, as_work, tmp_path):
+    from esky.querylog import recent_queries
+
+    async with Client(mcp) as client:
+        await client.call_tool("memory_search", {"query": "zzzznonexistenttoken"})
+
+    conn = ProfileRegistry(tmp_path).connect("work")
+    try:
+        (entry,) = recent_queries(conn)
+    finally:
+        conn.close()
+    assert entry.returned_count == 0
+    assert entry.matched_count == 0
+
+
+async def test_forget_echoes_the_reason_it_recorded(mcp, as_work):
+    """The reason is stored but no read surface exposes retired facts, so the
+    call that recorded it is the only place it can be confirmed."""
+    async with Client(mcp) as client:
+        written = await client.call_tool("memory_write", {
+            "text": "the server lives at 192.168.0.5", "kind": "project",
+            "tags": []})
+        result = await client.call_tool("memory_forget", {
+            "uid": written.data["uid"], "reason": "host was reassigned"})
+    assert result.data["reason"] == "host was reassigned"

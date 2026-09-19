@@ -4,6 +4,8 @@ import sys
 from esky.config import load_settings
 from esky.auth import issue_token, token_issued_at
 from esky.db.schema import SCHEMA_VERSION, migrate
+from esky.embedding import Embedder
+from esky.facts import FactsRepo
 from esky.profiles import InvalidProfileName, ProfileRegistry, UnknownProfile
 
 
@@ -19,6 +21,9 @@ def main(argv: list[str] | None = None) -> int:
     p_migrate = psub.add_parser(
         "migrate", help="bring an existing profile database up to date")
     p_migrate.add_argument("name")
+    p_reindex = psub.add_parser(
+        "reindex", help="recompute every embedding after an embedding change")
+    p_reindex.add_argument("name")
 
     token = sub.add_parser("token", help="manage profile access tokens")
     tsub = token.add_subparsers(dest="subcommand")
@@ -55,6 +60,19 @@ def main(argv: list[str] | None = None) -> int:
             finally:
                 conn.close()
             print(f"migrated {args.name} to schema version {SCHEMA_VERSION}")
+            return 0
+        if args.subcommand == "reindex":
+            try:
+                conn = registry.connect(args.name)
+            except (UnknownProfile, InvalidProfileName):
+                print(f"unknown profile: {args.name!r}", file=sys.stderr)
+                return 2
+            try:
+                done = FactsRepo(conn, Embedder(settings.embed_model)).reindex()
+                conn.commit()
+            finally:
+                conn.close()
+            print(f"reindexed {done} facts in {args.name}")
             return 0
         if args.subcommand == "list":
             for name in registry.list():

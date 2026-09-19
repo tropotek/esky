@@ -33,10 +33,28 @@ class Fact:
     created_at: str
     updated_at: str
     retired_at: str | None
+    retired_reason: str | None
 
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _embed_text(title: str | None, text: str) -> str:
+    """What a fact contributes to the vector index.
+
+    The title is included: it often carries the topic word the body only implies,
+    and leaving it out made a fact findable by half its content. Changing this
+    invalidates every existing embedding — see FactsRepo.reindex.
+    """
+    return f"{title}\n{text}" if title else text
+
+
+def _clean_title(given: str | None, existing: str | None) -> str | None:
+    """None leaves the title alone; an empty string clears it."""
+    if given is None:
+        return existing
+    return given or None
 
 
 def _row_to_fact(row: sqlite3.Row) -> Fact:
@@ -45,7 +63,7 @@ def _row_to_fact(row: sqlite3.Row) -> Fact:
         tags=json.loads(row["tags"]), source=row["source"],
         confidence=row["confidence"], supersedes=row["supersedes"],
         created_at=row["created_at"], updated_at=row["updated_at"],
-        retired_at=row["retired_at"],
+        retired_at=row["retired_at"], retired_reason=row["retired_reason"],
     )
 
 
@@ -67,7 +85,7 @@ class FactsRepo:
             "INSERT INTO facts_fts(rowid, title, text, tags) VALUES (?, ?, ?, ?)",
             (fact_id, title or "", text, " ".join(tags)),
         )
-        (vector,) = self.embedder.encode([text])
+        (vector,) = self.embedder.encode([_embed_text(title, text)])
         self.conn.execute(
             "INSERT INTO facts_vec(fact_id, embedding) VALUES (?, ?)",
             (fact_id, sqlite_vec.serialize_float32(vector)),
@@ -118,14 +136,14 @@ class FactsRepo:
                 tags=list(tags) if tags is not None else json.loads(row["tags"]),
                 source=row["source"],
                 supersedes=uid,
-                title=title if title is not None else row["title"],
+                title=_clean_title(title, row["title"]),
             )
 
         new_kind = kind or row["kind"]
         if new_kind not in KINDS:
             raise InvalidKind(new_kind)
         new_tags = list(tags) if tags is not None else json.loads(row["tags"])
-        new_title = title if title is not None else row["title"]
+        new_title = _clean_title(title, row["title"])
         self.conn.execute(
             "UPDATE facts SET kind = ?, tags = ?, title = ?, updated_at = ? "
             "WHERE uid = ?",
@@ -141,10 +159,30 @@ class FactsRepo:
             raise FactNotFound(uid)
         now = _now()
         self.conn.execute(
-            "UPDATE facts SET retired_at = ?, updated_at = ? WHERE uid = ?",
-            (now, now, uid),
+            "UPDATE facts SET retired_at = ?, updated_at = ?, retired_reason = ? "
+            "WHERE uid = ?",
+            (now, now, reason, uid),
         )
         self._deindex(row["id"])
+
+    def reindex(self) -> int:
+        """Recompute every live fact's embedding, returning how many were done.
+
+        Needed whenever what gets embedded changes — a new model, or a change to
+        which fields are included. A schema migration cannot do this: the vectors
+        come from Python, so SQL has no way to produce them.
+        """
+        rows = self.conn.execute(
+            "SELECT id, title, text FROM facts WHERE retired_at IS NULL").fetchall()
+        for row in rows:
+            self.conn.execute(
+                "DELETE FROM facts_vec WHERE fact_id = ?", (row["id"],))
+            (vector,) = self.embedder.encode([_embed_text(row["title"], row["text"])])
+            self.conn.execute(
+                "INSERT INTO facts_vec(fact_id, embedding) VALUES (?, ?)",
+                (row["id"], sqlite_vec.serialize_float32(vector)),
+            )
+        return len(rows)
 
     def recent(self, limit: int = 10, kind: str | None = None) -> list[Fact]:
         sql = "SELECT * FROM facts WHERE retired_at IS NULL"

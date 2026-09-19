@@ -289,6 +289,40 @@ Fact kinds:
 `reference` points at where something lives; `research` carries the finding
 itself.
 
+## The query log
+
+Every search is recorded — the query, the best hit, and two counts:
+`matched_count`, how many facts the search found, and `returned_count`, how many
+you were handed once `limit` was applied. Both are needed: a `returned_count` of
+2 means nothing on its own, because it reads the same whether the store held two
+facts or two hundred.
+
+A search with `matched_count: 0` is the interesting case. It is the only record
+of something you expected memory to know and it did not, and that evidence does
+not exist unless it is captured as it happens.
+
+```bash
+curl -H "Authorization: Bearer $ESKY_TOKEN" \
+  http://192.168.0.7:8011/api/personal/queries?limit=20
+```
+
+```json
+{"profile": "personal",
+ "queries": [{"query": "how do we deploy", "tags": [],
+              "matched_count": 0, "returned_count": 0,
+              "top_uid": null, "created_at": "2026-09-19T04:56:15+00:00"}]}
+```
+
+`limit` defaults to 50 and accepts 1–500; anything else is a `400`, because a
+negative `LIMIT` means "no limit" to SQLite and would quietly defeat the cap.
+Rows written before `matched_count` existed carry `null` for it rather than a
+guess.
+
+The log is per profile and behind the same token as everything else, so the
+`work` log is not readable with the `personal` token. It is REST-only and not
+an MCP tool: it is for you reviewing the store, and every tool description
+costs context in every agent session.
+
 ## CLI
 
 | Command | Purpose |
@@ -297,6 +331,8 @@ itself.
 | `esky profile list` | List profiles |
 | `esky token issue <profile>` | Issue a token, invalidating any previous one |
 | `esky token status <profile>` | Whether a token has been issued, and when |
+| `esky profile migrate <name>` | Bring a profile up to the current schema |
+| `esky profile reindex <name>` | Recompute every embedding after an embedding change |
 | `esky serve` | Run the server |
 
 Run them via `docker compose exec esky <command>`.

@@ -1,8 +1,23 @@
+from dataclasses import asdict
+
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from esky.auth import UNAUTHORIZED_BODY, authorize
+from esky.querylog import recent_queries
+
+
+def _positive_int(value, maximum: int) -> int:
+    """Parse a caller-supplied count, refusing anything SQLite would misread.
+
+    A negative LIMIT means 'no limit' in SQLite, so an unchecked value is not
+    merely odd — it silently defeats the cap it was supposed to be bounded by.
+    """
+    number = int(value)
+    if number < 1:
+        raise ValueError(number)
+    return min(number, maximum)
 
 
 def build_api(registry) -> Starlette:
@@ -41,8 +56,30 @@ def build_api(registry) -> Starlette:
             conn.close()
         return JSONResponse({"profile": name, "facts": facts, "retired": retired})
 
+    async def queries(request):
+        """What has been asked of this profile's memory, newest first.
+
+        Read-only and on the REST side rather than as a sixth MCP tool: this is
+        for a human reviewing what the store failed to answer, and every tool
+        description costs context in every agent session.
+        """
+        name = request.path_params["profile"]
+        if not authorize(registry, name, request.headers.get("authorization")):
+            return unauthorized()
+        try:
+            limit = _positive_int(request.query_params.get("limit", 50), 500)
+        except ValueError:
+            return JSONResponse({"error": "invalid limit"}, status_code=400)
+        conn = registry.connect(name)
+        try:
+            entries = [asdict(e) for e in recent_queries(conn, limit=limit)]
+        finally:
+            conn.close()
+        return JSONResponse({"profile": name, "queries": entries})
+
     return Starlette(routes=[
         Route("/health", health),
         Route("/api/profiles", profiles),
         Route("/api/{profile}/stats", stats),
+        Route("/api/{profile}/queries", queries),
     ])

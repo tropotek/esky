@@ -28,21 +28,33 @@ def _sanitise(query: str) -> str:
     return " OR ".join(f'"{t}"' for t in tokens)
 
 
-def _lexical_ranking(conn: sqlite3.Connection, query: str, pool: int) -> list[int]:
+def _tag_clause(tags: list[str] | None, alias: str) -> tuple[str, list[str]]:
+    """A tag restriction for a ranking query, so tags narrow what the pool is
+    drawn from rather than what survives it."""
+    if not tags:
+        return "", []
+    placeholders = ",".join("?" * len(tags))
+    return (f" AND EXISTS (SELECT 1 FROM json_each({alias}.tags) "
+            f"WHERE json_each.value IN ({placeholders}))"), list(tags)
+
+
+def _lexical_ranking(conn: sqlite3.Connection, query: str, pool: int,
+                     tags: list[str] | None = None) -> list[int]:
     match = _sanitise(query)
     if not match:
         return []
+    clause, tag_params = _tag_clause(tags, "f")
     rows = conn.execute(
         "SELECT f.id FROM facts_fts JOIN facts f ON f.id = facts_fts.rowid "
-        "WHERE facts_fts MATCH ? AND f.retired_at IS NULL "
-        "ORDER BY bm25(facts_fts) LIMIT ?",
-        (match, pool),
+        "WHERE facts_fts MATCH ? AND f.retired_at IS NULL " + clause +
+        " ORDER BY bm25(facts_fts) LIMIT ?",
+        (match, *tag_params, pool),
     ).fetchall()
     return [r[0] for r in rows]
 
 
 def _vector_ranking(conn, embedder, query: str, pool: int,
-                    max_distance: float) -> list[int]:
+                    max_distance: float, tags: list[str] | None = None) -> list[int]:
     """Nearest neighbours within a relevance floor.
 
     KNN always returns k results however unrelated they are, so without a
@@ -58,11 +70,12 @@ def _vector_ranking(conn, embedder, query: str, pool: int,
     ESKY_MAX_DISTANCE and re-measure if recall looks wrong.
     """
     (vector,) = embedder.encode([query])
+    clause, tag_params = _tag_clause(tags, "f")
     rows = conn.execute(
         "SELECT v.fact_id FROM facts_vec v JOIN facts f ON f.id = v.fact_id "
         "WHERE v.embedding MATCH ? AND k = ? AND f.retired_at IS NULL "
-        "AND v.distance <= ? ORDER BY v.distance",
-        (sqlite_vec.serialize_float32(vector), pool, max_distance),
+        "AND v.distance <= ? " + clause + " ORDER BY v.distance",
+        (sqlite_vec.serialize_float32(vector), pool, max_distance, *tag_params),
     ).fetchall()
     return [r[0] for r in rows]
 
@@ -71,7 +84,22 @@ def hybrid_search(conn, embedder, query: str, limit: int = 8,
                   tags: list[str] | None = None, rrf_k: int = 60,
                   facts_weight: float = 1.0,
                   max_distance: float = 0.9) -> list[SearchHit]:
+    """The hits alone, for callers that do not care how many were cut off."""
+    return hybrid_search_with_stats(
+        conn, embedder, query, limit=limit, tags=tags, rrf_k=rrf_k,
+        facts_weight=facts_weight, max_distance=max_distance)[0]
+
+
+def hybrid_search_with_stats(conn, embedder, query: str, limit: int = 8,
+                             tags: list[str] | None = None, rrf_k: int = 60,
+                             facts_weight: float = 1.0,
+                             max_distance: float = 0.9
+                             ) -> tuple[list[SearchHit], int]:
     """Fuse a BM25 ranking and a vector KNN ranking by reciprocal rank fusion.
+
+    Returns the hits and how many were matched before `limit` was applied. The
+    second number is what tells "memory knew nothing" apart from "memory knew
+    plenty and you asked for two" — see querylog.
 
     RRF is used rather than score normalisation because BM25 scores and cosine
     distances are not on comparable scales, and rank fusion needs no per-corpus
@@ -80,22 +108,19 @@ def hybrid_search(conn, embedder, query: str, limit: int = 8,
     """
     pool = max(limit * 5, 20)
     scores: dict[int, float] = {}
-    for ranking in (_lexical_ranking(conn, query, pool),
-                    _vector_ranking(conn, embedder, query, pool, max_distance)):
+    for ranking in (_lexical_ranking(conn, query, pool, tags),
+                    _vector_ranking(conn, embedder, query, pool, max_distance,
+                                    tags)):
         for rank, fact_id in enumerate(ranking, start=1):
             scores[fact_id] = scores.get(fact_id, 0.0) + facts_weight / (rrf_k + rank)
 
     if not scores:
-        return []
+        return [], 0
 
     placeholders = ",".join("?" * len(scores))
     sql = (f"SELECT * FROM facts WHERE id IN ({placeholders}) "
            "AND retired_at IS NULL")
     params: list = list(scores)
-    if tags:
-        sql += (" AND EXISTS (SELECT 1 FROM json_each(facts.tags) "
-                "WHERE json_each.value IN (" + ",".join("?" * len(tags)) + "))")
-        params += tags
 
     hits = [
         SearchHit(uid=r["uid"], title=r["title"], text=r["text"], kind=r["kind"],
@@ -104,4 +129,4 @@ def hybrid_search(conn, embedder, query: str, limit: int = 8,
         for r in conn.execute(sql, params)
     ]
     hits.sort(key=lambda h: h.score, reverse=True)
-    return hits[:limit]
+    return hits[:limit], len(hits)

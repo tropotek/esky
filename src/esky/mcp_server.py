@@ -5,7 +5,8 @@ from fastmcp import FastMCP
 
 from esky.facts import FactsRepo
 from esky.profile_context import current_profile
-from esky.search import hybrid_search
+from esky.querylog import log_query
+from esky.search import hybrid_search_with_stats
 
 
 def build_mcp(registry, embedder, settings) -> FastMCP:
@@ -30,9 +31,13 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
         decision was made. Prefer searching over guessing.
         """
         with _repo() as (conn, _):
-            return [asdict(h) for h in hybrid_search(
+            hits, matched = hybrid_search_with_stats(
                 conn, embedder, query, limit=limit, tags=tags,
-                rrf_k=settings.rrf_k, max_distance=settings.max_distance)]
+                rrf_k=settings.rrf_k, max_distance=settings.max_distance)
+            # What was asked, and whether memory could answer it. A search that
+            # returns nothing is the only evidence of what the store is missing.
+            log_query(conn, query, hits, matched=matched, tags=tags)
+            return [asdict(h) for h in hits]
 
     @mcp.tool
     def memory_write(text: str, kind: str, tags: list[str] | None = None,
@@ -84,7 +89,9 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
         searches but is never destroyed."""
         with _repo() as (_, repo):
             repo.retire(uid, reason)
-            return {"uid": uid, "retired": True}
+            # Echoed back because nothing else reads it: the retired fact drops
+            # out of search, so this call is the only confirmation it was kept.
+            return {"uid": uid, "retired": True, "reason": reason}
 
     @mcp.tool
     def memory_recent(limit: int = 10, kind: str | None = None) -> list[dict]:

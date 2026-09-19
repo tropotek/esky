@@ -1,3 +1,4 @@
+import sqlite_vec
 import pytest
 
 from esky.facts import FactNotFound, FactsRepo, InvalidKind
@@ -130,3 +131,45 @@ def test_text_change_can_replace_the_title(repo):
     original = repo.write("port is 8080", "project", [], title="server port")
     updated = repo.update(original.uid, text="port is 9090", title="listen port")
     assert updated.title == "listen port"
+
+
+def test_retire_records_its_reason(repo):
+    f = repo.write("the server lives at 192.168.0.5", "project", [])
+    repo.retire(f.uid, reason="host was reassigned")
+    assert repo.get(f.uid).retired_reason == "host was reassigned"
+
+
+def test_retire_without_a_reason_leaves_it_null(repo):
+    f = repo.write("a fact", "project", [])
+    repo.retire(f.uid)
+    assert repo.get(f.uid).retired_reason is None
+
+
+def test_update_clears_a_title_with_an_empty_string(repo):
+    f = repo.write("it listens on 8080", "project", [], title="server port")
+    assert repo.update(f.uid, title="").title is None
+
+
+def test_reindex_rebuilds_embeddings_for_existing_facts(repo, conn, embedder):
+    """Facts written before an embedding change carry stale vectors. Nothing in
+    SQL can recompute them, so the repo has to."""
+    f = repo.write("port 8080", "project", [], title="webserver harbour")
+    # Simulate the pre-change state: a vector built from the text alone.
+    conn.execute("DELETE FROM facts_vec WHERE fact_id = (SELECT id FROM facts "
+                 "WHERE uid = ?)", (f.uid,))
+    (stale,) = embedder.encode(["port 8080"])
+    conn.execute("INSERT INTO facts_vec(fact_id, embedding) SELECT id, ? FROM "
+                 "facts WHERE uid = ?", (sqlite_vec.serialize_float32(stale), f.uid))
+
+    from esky.search import _vector_ranking
+    assert _vector_ranking(conn, embedder, "webserver harbour", 10, 0.9) == []
+
+    assert repo.reindex() == 1
+    assert _vector_ranking(conn, embedder, "webserver harbour", 10, 0.9)
+
+
+def test_reindex_skips_retired_facts(repo, conn):
+    f = repo.write("a fact", "project", [])
+    repo.retire(f.uid)
+    assert repo.reindex() == 0
+    assert conn.execute("SELECT count(*) FROM facts_vec").fetchone()[0] == 0

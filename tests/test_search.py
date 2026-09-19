@@ -1,7 +1,7 @@
 import pytest
 
 from esky.facts import FactsRepo
-from esky.search import hybrid_search
+from esky.search import _vector_ranking, hybrid_search
 
 
 @pytest.fixture
@@ -94,3 +94,31 @@ def test_title_words_are_searchable(conn, embedder):
 def test_hits_carry_a_null_title_when_unset(seeded):
     conn, emb = seeded
     assert all(h.title is None for h in hybrid_search(conn, emb, "docker compose"))
+
+
+def test_title_is_visible_to_vector_search(conn, embedder):
+    """A title carries topic words the text does not. Semantic search must see
+    them, or a fact is only findable by the half of its content that is indexed.
+
+    Kept terse because FakeEmbedder is a bag of words: every token the query
+    does not share dilutes the match, so a long body would fall past the
+    distance floor for reasons that have nothing to do with the title.
+    """
+    repo = FactsRepo(conn, embedder)
+    repo.write("port 8080", "project", [], title="webserver harbour")
+    assert _vector_ranking(conn, embedder, "webserver harbour", 10, 0.9)
+
+
+def test_tag_filter_does_not_starve_the_result_set(conn, embedder):
+    """Tags must narrow the rankings, not the already-truncated pool: a tagged
+    fact that ranks outside the pool is still a tagged fact.
+    """
+    repo = FactsRepo(conn, embedder)
+    for i in range(24):
+        repo.write(f"alpha beta gamma delta record {i}", "project", ["bulk"])
+    for i in range(2):
+        repo.write(f"alpha {i} " + " ".join(f"filler{j}" for j in range(40)),
+                   "project", ["wanted"])
+
+    hits = hybrid_search(conn, embedder, "alpha", limit=2, tags=["wanted"])
+    assert len(hits) == 2

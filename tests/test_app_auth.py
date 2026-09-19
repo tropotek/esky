@@ -120,3 +120,35 @@ def test_wellformed_unknown_profile_is_indistinguishable_from_unauthorised(setup
     unauthorised = client.get("/api/personal/stats", headers=auth(work_token))
     assert unknown.status_code == unauthorised.status_code == 401
     assert unknown.json() == unauthorised.json()
+
+
+def test_queries_endpoint_returns_the_log(setup):
+    client, work_token, _ = setup
+    r = client.get("/api/work/queries", headers=auth(work_token))
+    assert r.status_code == 200
+    assert r.json() == {"profile": "work", "queries": []}
+
+
+def test_queries_endpoint_rejects_another_profiles_token(setup):
+    client, _, personal_token = setup
+    assert client.get(
+        "/api/work/queries", headers=auth(personal_token)).status_code == 401
+
+
+def test_queries_endpoint_rejects_a_missing_token(setup):
+    client, _, _ = setup
+    assert client.get("/api/work/queries").status_code == 401
+
+
+def test_queries_limit_rejects_a_negative_value(setup):
+    """SQLite reads LIMIT -1 as 'no limit', so an unvalidated negative silently
+    dumps the whole log past the cap."""
+    client, work_token, _ = setup
+    r = client.get("/api/work/queries?limit=-1", headers=auth(work_token))
+    assert r.status_code == 400
+
+
+def test_queries_limit_rejects_a_non_number(setup):
+    client, work_token, _ = setup
+    r = client.get("/api/work/queries?limit=abc", headers=auth(work_token))
+    assert r.status_code == 400

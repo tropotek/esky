@@ -1,6 +1,9 @@
 import pytest
 
+from conftest import FakeEmbedder
 from esky.cli import main
+from esky.facts import FactsRepo
+from esky.profiles import ProfileRegistry
 
 
 @pytest.fixture(autouse=True)
@@ -101,3 +104,21 @@ def test_profile_migrate_brings_an_old_database_up_to_date(data_dir, capsys):
 
 def test_profile_migrate_on_unknown_profile_errors(data_dir):
     assert main(["profile", "migrate", "nope"]) == 2
+
+
+def test_reindex_reports_how_many_facts_were_done(data_dir, monkeypatch, capsys):
+    """The real model is never loaded in tests, so the CLI's embedder is
+    swapped for the deterministic fake."""
+    monkeypatch.setattr("esky.cli.Embedder", lambda name: FakeEmbedder())
+    main(["profile", "create", "work"])
+    conn = ProfileRegistry(data_dir).connect("work")
+    FactsRepo(conn, FakeEmbedder()).write("a fact", "project", [])
+    conn.close()
+
+    assert main(["profile", "reindex", "work"]) == 0
+    assert "1" in capsys.readouterr().out
+
+
+def test_reindex_rejects_an_unknown_profile(data_dir, monkeypatch):
+    monkeypatch.setattr("esky.cli.Embedder", lambda name: FakeEmbedder())
+    assert main(["profile", "reindex", "nope"]) == 2

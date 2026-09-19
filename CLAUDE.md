@@ -13,6 +13,10 @@ memory over streamable HTTP; each context is a separate SQLite file.
   RRF search, five MCP tools, CLI, Docker.
 - **Phase 1.5 (per-profile bearer tokens) — done.** Deployed and in use from
   two machines.
+- **Query log — done.** Every `memory_search` is recorded to `queries`, read
+  back over REST. Groundwork for Phase 2, not part of it: the recall digest
+  needs evidence of what memory failed to answer, and that only exists if it
+  was captured as it happened.
 - **Phase 2 (capture) — not started.** `sessions` / `observations`, ingest
   endpoint, `SessionStart` recall digest, Claude Code hooks, retention pruning.
 - **Phase 3 (distillation) — not started.** llama.cpp nightly batch,
@@ -49,15 +53,23 @@ docker compose exec esky esky profile create <name>
 docker compose exec esky esky token issue <profile>       # rotation is reissue
 docker compose exec esky esky token status <profile>
 docker compose exec esky esky profile migrate <name>      # after a schema bump
+docker compose exec esky esky profile reindex <name>      # after an embedding change
+curl -H "Authorization: Bearer $TOK" \
+  http://192.168.0.7:8011/api/<profile>/queries           # what was asked of memory
 ```
+
+The `esky` service runs the **baked image**, not the source tree — only `./data`
+is mounted. Code changes need `docker compose build esky && docker compose up -d
+esky` before `esky ...` inside the container runs them, and a `migrate` against
+the old image will silently stop at the old version.
 
 `pyproject.toml` sets `addopts = -m 'not slow'`, but nothing is marked `slow`
 yet — `test_embedding.py` downloads the real model on every run. Mark it if
 that becomes annoying. `docker-compose-live.yml` is the deployed variant;
 `docker-compose.yml` is the one to use locally.
 
-Source is bind-mounted into the dev container, so edits apply without a
-rebuild.
+Source is bind-mounted into the **dev** container, so tests pick up edits
+without a rebuild. The prod container does not — see above.
 
 ## Architecture
 
@@ -75,8 +87,20 @@ prefix in `root_path`; the dispatcher handles both conventions.
 **Two HTTP surfaces, two auth shapes.** `/health` is unauthenticated on
 purpose (the compose healthcheck needs it, and it reveals nothing).
 `/api/profiles` scans every profile and reports only the one the presented
-token grants; `/api/{profile}/stats` authorises that one profile. Everything
-under `/mcp/` is authorised by `ProfileDispatcher` before it reaches a tool.
+token grants; `/api/{profile}/stats` and `/api/{profile}/queries` authorise that
+one profile. Everything under `/mcp/` is authorised by `ProfileDispatcher`
+before it reaches a tool.
+
+**Searches are logged to `queries`, per profile.** Two counts, deliberately:
+`returned_count` is bounded by the caller's `limit`, so only `matched_count`
+distinguishes a store that knew nothing from one that knew plenty. A search that
+matches nothing is the only evidence of what the store is missing, and it is
+unrecoverable unless written down when it happens — which is what Phase 2's
+recall digest has to be designed against. The log lives in the profile database
+so it inherits profile isolation, and it is read over REST
+(`/api/{profile}/queries`) rather than as a sixth MCP tool, because it is for a
+human reviewing the store and every tool description costs context in every
+agent session.
 
 **Schema changes are numbered steps in `db/schema.py`.** `_V1` is the full
 schema and must stay re-runnable; later steps are one-way and apply only
@@ -107,6 +131,11 @@ Breaking these silently breaks the guarantees the design rests on:
   triggers. The vector index needs an embedding computed in Python, so
   splitting the work between triggers and code would leave two places to get
   it wrong.
+- **`_embed_text` in `facts.py` defines what gets embedded** — currently title
+  and text together, because a title often carries the topic word the body only
+  implies. Changing it invalidates every stored vector, so it pairs with
+  `esky profile reindex` against each profile; a SQL migration cannot do this,
+  since the vectors come from Python.
 - **`EMBED_DIM` lives only in `config.py`** and must match the `FLOAT[384]`
   in the DDL. Changing the embedding model requires a reindex.
 - **The `kind` vocabulary lives in `facts.KINDS`** and is repeated in the

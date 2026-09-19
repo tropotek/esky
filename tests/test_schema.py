@@ -76,3 +76,36 @@ def test_v1_database_gains_a_title_column_and_rebuilt_fts(tmp_path):
                      "MATCH '\"8080\"'").fetchone()[0] == 1
     assert c.execute("SELECT count(*) FROM facts_vec").fetchone()[0] == 1
     c.close()
+
+
+def test_queries_table_has_both_counts(conn):
+    columns = {r[1] for r in conn.execute("SELECT * FROM pragma_table_info('queries')")}
+    assert {"returned_count", "matched_count"} <= columns
+    assert "hits" not in columns
+
+
+def test_redundant_queries_index_is_gone(conn):
+    """`queries.id` is INTEGER PRIMARY KEY, so it is the rowid and SQLite
+    already walks it backwards for ORDER BY id DESC."""
+    indexes = {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'index'")}
+    assert "queries_recent" not in indexes
+
+
+def test_a_v3_database_migrates_forward(tmp_path):
+    """The rename and the index drop have to apply to the databases already at
+    v3, not only to fresh ones."""
+    from esky.db.schema import _V1, _V3
+
+    c = open_db(tmp_path / "old.db")
+    c.executescript(_V1)
+    c.executescript(_V3)
+    c.execute("INSERT INTO meta(key, value) VALUES('schema_version', '3')")
+    c.execute("INSERT INTO queries(query, hits, created_at) "
+              "VALUES ('an old row', 4, '2026-09-19T00:00:00+00:00')")
+    migrate(c)
+
+    row = c.execute("SELECT returned_count, matched_count FROM queries").fetchone()
+    assert row["returned_count"] == 4
+    assert row["matched_count"] is None
+    c.close()
