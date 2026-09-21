@@ -16,7 +16,15 @@ services:
       - "${ESKY_BIND:-127.0.0.1}:${ESKY_PORT:-8080}:8080"
     volumes:
       - ./data:/data
+      # A named volume, not a bind mount: Docker seeds it from the image on
+      # first use, so the ONNX model baked in by the prod stage survives. An
+      # empty host directory would mask it and force a cold download instead.
       - esky-models:/models
+    environment:
+      # HOME is / in the image and the container runs as a non-root user, so the
+      # HuggingFace Xet downloader cannot create its cache under the default
+      # $HOME/.cache. Point it at the models volume, which is writable.
+      HF_HOME: /models
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c",
@@ -37,8 +45,11 @@ services:
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
+      # Shares the esky service's cache. The dev stage bakes no model, so run
+      # the esky service at least once before the tests on a fresh machine.
       - esky-models:/models
     environment:
+      HF_HOME: /models
       PYTHONHASHSEED: "0"
       # Harmless once the container runs as the host user, but keeps the
       # source tree clean of stray __pycache__ dirs either way.
