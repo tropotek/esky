@@ -1,0 +1,52 @@
+site_name: Esky
+site_description: A self-hosted MCP memory server for the LAN — agents read and write durable memory over streamable HTTP.
+site_url: https://tropotek.github.io/esky/
+repo_url: https://github.com/tropotek/esky
+repo_name: tropotek/esky
+edit_uri: edit/main/docs/
+docs_dir: docs
+exclude_docs: |
+  requirements.txt
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+    - content.action.edit
+
+nav:
+  - Home: index.md
+  - Connecting an agent: connecting.md
+  - Tools and facts: tools.md
+  - Operations: operations.md
+  - Security: security.md
+  - Development: development.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    not_found: warn

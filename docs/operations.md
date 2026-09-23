@@ -77,7 +77,7 @@ since a profile's token is shared by everything pointed at it.
 | `./data/*.db` owned by `root`, unreadable from the host | Set `ESKY_UID`/`ESKY_GID` in `.env`, then fix the existing files once: `docker run --rm -v "$PWD/data:/data" alpine chown -R $(id -u):$(id -g) /data` |
 | `Connection refused` from another machine | `ESKY_BIND` is still `127.0.0.1`. Set it to the LAN IP and `docker compose up -d`. |
 | Connection times out from another machine | Host firewall. Check `sudo ufw status`. |
-| `/mcp` shows the server but no tools | Token rejected at connect. Test the same token with the `/api/profiles` curl in [connecting](connecting.md#claude-code-from-another-machine-on-the-lan). |
+| `/mcp` shows the server but no tools | Token rejected at connect. Test the same token with the `/api/profiles` curl in [connecting](connecting.md#from-another-machine-on-the-lan). |
 | Tool descriptions look out of date | Clients cache them at session start. Restart the Claude session. |
 | Connected, but the agent never recalls anything | Expected without the instruction — see [Tell your agent to use it](connecting.md#tell-your-agent-to-use-it). |
 

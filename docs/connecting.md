@@ -5,7 +5,7 @@ to use it — see [Tell your agent to use it](#tell-your-agent-to-use-it) below,
 without which the store is written to but never read from.
 
 These examples use `personal` as the profile and `$TOKEN` as its bearer token.
-See [Set up a profile](../README.md#set-up-a-profile) for both.
+See [Set up a profile](https://github.com/tropotek/esky#set-up-a-profile) for both.
 
 ## Same machine
 
