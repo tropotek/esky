@@ -1,8 +1,8 @@
 # Esky 🧊
 
-**A cold box for your agents' memory. Self-hosted, on your own network.**
+[![Docs](https://img.shields.io/badge/docs-tropotek.github.io%2Fesky-2f6feb)](https://tropotek.github.io/esky/)
 
-📖 **[Documentation](https://tropotek.github.io/esky/)**
+**A cold box for your agents' memory. Self-hosted, on your own network.**
 
 A self-hosted MCP memory server for the local network. Any MCP-speaking agent
 — Claude Code, Codex, the OpenAI Agents SDK — can read and write durable
