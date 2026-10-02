@@ -1,7 +1,7 @@
 import pytest
 
 from esky.facts import FactsRepo
-from esky.search import _vector_ranking, hybrid_search
+from esky.search import _vector_ranking, hybrid_search, hybrid_search_detailed
 
 
 @pytest.fixture
@@ -122,3 +122,101 @@ def test_tag_filter_does_not_starve_the_result_set(conn, embedder):
 
     hits = hybrid_search(conn, embedder, "alpha", limit=2, tags=["wanted"])
     assert len(hits) == 2
+
+
+# --- exact-ID step --------------------------------------------------------
+# A bare ticket number carries no meaning for the embedder, and FTS splits
+# `sc-3469` into `sc` OR `3469`, so a common prefix drowns the rare number.
+
+
+@pytest.fixture
+def tickets(conn, embedder):
+    repo = FactsRepo(conn, embedder)
+    for i in range(6):
+        repo.write(f"sc-10{i} admin tiers map to the sc catalogue", "project", [])
+    wanted = repo.write("login redirect times out on SSO", "project",
+                        ["sc-3469"])
+    in_text = repo.write("fixed in PR #123 for the importer", "project", [])
+    near = repo.write("older follow-up in #1234 about caching", "project", [])
+    return conn, embedder, wanted, in_text, near
+
+
+def test_ticket_id_in_tags_ranks_first(tickets):
+    conn, emb, wanted, *_ = tickets
+    assert hybrid_search(conn, emb, "sc-3469")[0].uid == wanted.uid
+
+
+def test_ticket_id_in_text_ranks_first(conn, embedder):
+    repo = FactsRepo(conn, embedder)
+    for i in range(6):
+        repo.write(f"sc-10{i} admin tiers map to the sc catalogue", "project", [])
+    wanted = repo.write("sc-3469 login redirect times out", "project", [])
+    assert hybrid_search(conn, embedder, "sc-3469")[0].uid == wanted.uid
+
+
+def test_ticket_id_match_is_case_insensitive(tickets):
+    conn, emb, wanted, *_ = tickets
+    assert hybrid_search(conn, emb, "SC-3469")[0].uid == wanted.uid
+
+
+def test_hash_number_matches_literally(tickets):
+    conn, emb, _, in_text, _ = tickets
+    assert hybrid_search(conn, emb, "#123")[0].uid == in_text.uid
+
+
+def test_hash_number_does_not_match_a_longer_number(tickets):
+    conn, emb, _, in_text, near = tickets
+    result = hybrid_search_detailed(conn, emb, "#123")
+    assert result.exact_count == 1
+    assert result.hits[0].uid == in_text.uid
+
+
+def test_ticket_id_does_not_match_a_longer_number(conn, embedder):
+    FactsRepo(conn, embedder).write("sc-34690 something else", "project", [])
+    assert hybrid_search_detailed(conn, embedder, "sc-3469").exact_count == 0
+
+
+def test_a_uid_resolves_to_its_fact(conn, embedder):
+    repo = FactsRepo(conn, embedder)
+    repo.write("unrelated filler fact", "project", [])
+    wanted = repo.write("the one we want", "project", [])
+    hits = hybrid_search(conn, embedder, wanted.uid)
+    assert hits[0].uid == wanted.uid
+
+
+def test_no_exact_match_falls_through_to_the_normal_search(seeded):
+    conn, emb = seeded
+    result = hybrid_search_detailed(conn, emb, "docker compose sc-9999")
+    assert result.exact_count == 0
+    assert result.hits[0].text.startswith("the deployment uses docker compose")
+
+
+def test_exact_matches_respect_the_tag_filter(conn, embedder):
+    repo = FactsRepo(conn, embedder)
+    repo.write("sc-3469 in the work store", "project", ["work"])
+    repo.write("sc-3469 in the home store", "project", ["home"])
+    hits = hybrid_search(conn, embedder, "sc-3469", tags=["home"])
+    assert [h.text for h in hits] == ["sc-3469 in the home store"]
+
+
+def test_retired_facts_are_not_exact_matches(conn, embedder):
+    repo = FactsRepo(conn, embedder)
+    old = repo.write("sc-3469 old understanding", "project", [])
+    repo.retire(old.uid)
+    assert hybrid_search_detailed(conn, embedder, "sc-3469").exact_count == 0
+
+
+def test_detailed_result_reports_the_top_vector_distance(conn, embedder):
+    """Terse fact: FakeEmbedder is a bag of words, so a long one falls past the
+    distance floor for reasons unrelated to what is under test."""
+    FactsRepo(conn, embedder).write("docker compose", "project", [])
+    result = hybrid_search_detailed(conn, embedder, "docker compose")
+    assert result.top_distance is not None
+    assert result.top_distance <= 0.9
+
+
+def test_detailed_result_has_no_distance_for_a_miss(seeded):
+    conn, emb = seeded
+    result = hybrid_search_detailed(conn, emb, "zzzznonexistenttoken")
+    assert result.hits == []
+    assert result.top_distance is None

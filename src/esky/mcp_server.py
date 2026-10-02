@@ -6,7 +6,7 @@ from fastmcp import FastMCP
 from esky.facts import FactsRepo
 from esky.profile_context import current_profile
 from esky.querylog import log_query
-from esky.search import hybrid_search_with_stats
+from esky.search import hybrid_search_detailed
 
 
 def build_mcp(registry, embedder, settings) -> FastMCP:
@@ -31,12 +31,15 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
         decision was made. Prefer searching over guessing.
         """
         with _repo() as (conn, _):
-            hits, matched = hybrid_search_with_stats(
+            result = hybrid_search_detailed(
                 conn, embedder, query, limit=limit, tags=tags,
                 rrf_k=settings.rrf_k, max_distance=settings.max_distance)
+            hits = result.hits
             # What was asked, and whether memory could answer it. A search that
             # returns nothing is the only evidence of what the store is missing.
-            log_query(conn, query, hits, matched=matched, tags=tags)
+            log_query(conn, query, hits, matched=result.matched, tags=tags,
+                      exact_count=result.exact_count,
+                      top_distance=result.top_distance)
             return [asdict(h) for h in hits]
 
     @mcp.tool
@@ -56,6 +59,10 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
                        stated; use this rather than `reference` when the value
                        is the finding itself, not where it lives
           decision   - a choice made and the reasoning behind it
+
+        `tags` are for lookup by label. Tag a fact with any ticket key or
+        PR/issue number it concerns (e.g. "sc-3469", "#123"): searching for
+        an ID finds facts that contain it exactly, in the text or the tags.
 
         `title` is an optional short label for scanning a list of facts; omit
         it when the text is already terse.

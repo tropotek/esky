@@ -10,13 +10,17 @@ class QueryEntry:
     tags: list[str]
     returned_count: int
     matched_count: int | None
+    exact_count: int | None
+    top_distance: float | None
     top_uid: str | None
     created_at: str
 
 
 def log_query(conn: sqlite3.Connection, query: str, hits,
               matched: int | None = None,
-              tags: list[str] | None = None) -> None:
+              tags: list[str] | None = None,
+              exact_count: int | None = None,
+              top_distance: float | None = None) -> None:
     """Record one search and what it found.
 
     Kept in the profile database rather than a log file so it inherits profile
@@ -29,6 +33,11 @@ def log_query(conn: sqlite3.Connection, query: str, hits,
     It is optional, and a caller that cannot supply it leaves NULL rather than
     a guess.
 
+    `exact_count` and `top_distance` say how good the answer was: a query that
+    returned a fact only because it was the nearest neighbour looks the same as
+    a real hit by count alone. `top_distance` is the vector distance of the top
+    hit, NULL when it came from the lexical side only.
+
     Failures are not swallowed. This is one INSERT into a local table, so the
     only way it fails is a database that is already broken — and hiding that
     behind a successful search would make the store lie about its own health.
@@ -36,17 +45,18 @@ def log_query(conn: sqlite3.Connection, query: str, hits,
     top = hits[0].uid if hits else None
     conn.execute(
         "INSERT INTO queries(query, tags, returned_count, matched_count, "
-        "top_uid, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (query, json.dumps(list(tags or [])), len(hits), matched, top,
-         datetime.now(UTC).isoformat()),
+        "exact_count, top_distance, top_uid, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (query, json.dumps(list(tags or [])), len(hits), matched, exact_count,
+         top_distance, top, datetime.now(UTC).isoformat()),
     )
 
 
 def recent_queries(conn: sqlite3.Connection, limit: int = 50) -> list[QueryEntry]:
     """Most recent searches first, which is the order they are read in."""
     rows = conn.execute(
-        "SELECT query, tags, returned_count, matched_count, top_uid, "
-        "created_at FROM queries "
+        "SELECT query, tags, returned_count, matched_count, exact_count, "
+        "top_distance, top_uid, created_at FROM queries "
         "ORDER BY id DESC LIMIT ?",
         (limit,),
     ).fetchall()
@@ -54,6 +64,8 @@ def recent_queries(conn: sqlite3.Connection, limit: int = 50) -> list[QueryEntry
         QueryEntry(query=r["query"], tags=json.loads(r["tags"]),
                    returned_count=r["returned_count"],
                    matched_count=r["matched_count"],
+                   exact_count=r["exact_count"],
+                   top_distance=r["top_distance"],
                    top_uid=r["top_uid"], created_at=r["created_at"])
         for r in rows
     ]

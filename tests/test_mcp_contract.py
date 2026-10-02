@@ -130,3 +130,22 @@ async def test_forget_echoes_the_reason_it_recorded(mcp, as_work):
         result = await client.call_tool("memory_forget", {
             "uid": written.data["uid"], "reason": "host was reassigned"})
     assert result.data["reason"] == "host was reassigned"
+
+
+async def test_an_id_search_finds_the_fact_and_logs_the_exact_match(
+        mcp, as_work, tmp_path):
+    from esky.querylog import recent_queries
+
+    async with Client(mcp) as client:
+        await client.call_tool("memory_write", {
+            "text": "login redirect times out on SSO", "kind": "project",
+            "tags": ["sc-3469"]})
+        found = await client.call_tool("memory_search", {"query": "sc-3469"})
+
+    assert found.data[0]["tags"] == ["sc-3469"]
+    conn = ProfileRegistry(tmp_path).connect("work")
+    try:
+        (entry,) = recent_queries(conn)
+    finally:
+        conn.close()
+    assert entry.exact_count == 1

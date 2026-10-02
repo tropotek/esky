@@ -2,7 +2,7 @@ import sqlite3
 
 from esky.config import EMBED_DIM
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 _V1 = f"""
 CREATE TABLE IF NOT EXISTS meta (
@@ -83,6 +83,16 @@ ALTER TABLE queries RENAME COLUMN hits TO returned_count;
 ALTER TABLE queries ADD COLUMN matched_count INTEGER;
 """
 
+# A search that returned something is not the same as one that found it: the
+# nearest neighbour comes back however weak. `top_distance` is the vector
+# distance of the top hit (NULL when it was a lexical match only) and
+# `exact_count` is how many facts matched an ID in the query literally. Existing
+# rows stay NULL rather than gain a guess.
+_V5 = """
+ALTER TABLE queries ADD COLUMN exact_count INTEGER;
+ALTER TABLE queries ADD COLUMN top_distance REAL;
+"""
+
 
 def _version(conn: sqlite3.Connection) -> int:
     row = conn.execute(
@@ -104,6 +114,8 @@ def migrate(conn: sqlite3.Connection) -> None:
         conn.executescript(_V3)
     if version < 4:
         conn.executescript(_V4)
+    if version < 5:
+        conn.executescript(_V5)
     conn.execute(
         "INSERT INTO meta(key, value) VALUES('schema_version', ?) "
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",

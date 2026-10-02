@@ -109,3 +109,23 @@ def test_a_v3_database_migrates_forward(tmp_path):
     assert row["returned_count"] == 4
     assert row["matched_count"] is None
     c.close()
+
+
+def test_a_v4_database_gains_the_relevance_columns(tmp_path):
+    from esky.db.schema import _V1, _V3, _V4
+
+    c = open_db(tmp_path / "old.db")
+    c.executescript(_V1)
+    c.executescript(_V3)
+    c.executescript(_V4)
+    c.execute("INSERT INTO meta(key, value) VALUES('schema_version', '4')")
+    c.execute("INSERT INTO queries(query, returned_count, created_at) "
+              "VALUES ('an old row', 4, '2026-09-19T00:00:00+00:00')")
+    migrate(c)
+
+    row = c.execute("SELECT returned_count, exact_count, top_distance "
+                    "FROM queries").fetchone()
+    assert row["returned_count"] == 4
+    assert row["exact_count"] is None
+    assert row["top_distance"] is None
+    c.close()

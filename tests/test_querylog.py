@@ -78,3 +78,17 @@ def test_matched_count_records_what_the_limit_cut_off(conn, embedder, repo):
 def test_matched_count_is_unknown_when_not_supplied(conn):
     log_query(conn, "a query", [])
     assert recent_queries(conn)[0].matched_count is None
+
+
+def test_relevance_signals_are_recorded(conn):
+    log_query(conn, "sc-3469", [], exact_count=1, top_distance=0.61)
+    entry = recent_queries(conn)[0]
+    assert entry.exact_count == 1
+    assert entry.top_distance == 0.61
+
+
+def test_relevance_signals_are_unknown_when_not_supplied(conn):
+    log_query(conn, "a query", [])
+    entry = recent_queries(conn)[0]
+    assert entry.exact_count is None
+    assert entry.top_distance is None
