@@ -28,8 +28,11 @@ RUN pip install --no-cache-dir .
 RUN python -c "from fastembed import TextEmbedding; TextEmbedding(model_name='BAAI/bge-small-en-v1.5')"
 
 # The container may run as an arbitrary host UID (compose `user:`), so the
-# writable dirs cannot be owned by a user baked into the image.
-RUN mkdir -p /data /models && chmod 0777 /data /models
+# writable dirs cannot be owned by a user baked into the image. /models is
+# recursive: the model download above ran as root and left root-owned .locks
+# and blobs directories, which the HuggingFace downloader must write to even
+# when the model is already cached.
+RUN mkdir -p /data /models && chmod 0777 /data && chmod -R a+rwX /models
 
 VOLUME ["/data"]
 EXPOSE 8080
