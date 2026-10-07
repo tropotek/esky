@@ -92,6 +92,12 @@ def _vector_neighbours(conn, embedder, query: str, pool: int,
         unrelated 'recipe for banana bread' -> 1.001
     The bands separate, but not by much. 0.9 sits in the gap; tune via
     ESKY_MAX_DISTANCE and re-measure if recall looks wrong.
+
+    Deployed traffic runs higher than this corpus suggests: top hits observed
+    between 0.62 and 0.88, most of them above 0.75, on searches whose results
+    were good. Short keyword queries are less similar to a stored sentence
+    than a seeded phrase is, so lowering the floor towards 0.75 would discard
+    most real hits. Check the query log before moving it.
     """
     (vector,) = embedder.encode([query])
     clause, tag_params = _tag_clause(tags, "f")

@@ -155,8 +155,18 @@ Breaking these silently breaks the guarantees the design rests on:
   difference.
 - **Vector search needs its distance floor.** KNN returns k neighbours however
   unrelated, so without `ESKY_MAX_DISTANCE` a nonsense query hands the agent
-  confident-looking facts. Measured L2 over unit-normalised `bge-small`:
-  related 0.54–0.74, unrelated 0.88–1.00.
+  confident-looking facts. Measured L2 over unit-normalised `bge-small` on a
+  seeded corpus: related 0.54–0.74, unrelated 0.88–1.00.
+
+  **Live traffic sits higher than that, so do not tighten the floor below
+  0.9.** Across 52 instrumented searches in the two deployed profiles the top
+  hit never fell below 0.62, and 27 of the work profile's 32 landed in
+  0.75–0.88 — the band the seeded numbers call weak — while being the results
+  the user judged good. Real queries are keyword-shaped rather than
+  sentence-shaped, which pushes cosine distance up, and RRF means the FTS side
+  is carrying more of the ranking than the vector distance suggests. Judge a
+  floor change against `/api/{profile}/queries`, not against the seeded
+  corpus.
 
 ## Testing
 

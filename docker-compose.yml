@@ -25,6 +25,17 @@ services:
       # HuggingFace Xet downloader cannot create its cache under the default
       # $HOME/.cache. Point it at the models volume, which is writable.
       HF_HOME: /models
+      # Compose reads .env for ${...} interpolation only. A tuning value there
+      # reaches the app solely because it is named here as well, and the
+      # fallbacks must track the defaults in config.py, since an unset variable
+      # would otherwise pass an empty string and override them.
+      ESKY_EMBED_MODEL: "${ESKY_EMBED_MODEL:-BAAI/bge-small-en-v1.5}"
+      ESKY_RRF_K: "${ESKY_RRF_K:-60}"
+      ESKY_MAX_DISTANCE: "${ESKY_MAX_DISTANCE:-0.9}"
+      # Left out deliberately. ESKY_BIND, ESKY_UID and ESKY_GID are consumed by
+      # this file, not the app. ESKY_DATA_DIR is fixed by the ./data mount. And
+      # .env's ESKY_PORT is the *host* port: passing it through would make the
+      # app bind a port the mapping does not target, breaking the healthcheck.
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c",

@@ -30,12 +30,25 @@ Run them via `docker compose exec esky <command>`.
 | `ESKY_RRF_K` | `60` | Reciprocal rank fusion constant |
 | `ESKY_MAX_DISTANCE` | `0.9` | Relevance floor for vector hits |
 
+`ESKY_HOST`, `ESKY_PORT` and `ESKY_DATA_DIR` configure the app inside the
+container, where the image already fixes them to `0.0.0.0`, `8080` and
+`/data`. Compose publishes the port and mounts the data directory, so the
+`.env` entries for `ESKY_PORT` and `ESKY_BIND` describe the **host** side only.
+The three tuning values below are the ones `.env` genuinely changes.
+
 `ESKY_MAX_DISTANCE` is worth understanding: vector KNN returns its nearest
 neighbours however unrelated they are, so without a floor a nonsense query
 still hands the agent confident-looking facts. Measured L2 distances over
-unit-normalised `bge-small` vectors put related queries at 0.54–0.74 and
-unrelated at 0.88–1.00. Raise it if recall looks too tight, lower it if
-searches return noise.
+unit-normalised `bge-small` vectors on a seeded corpus put related queries at
+0.54–0.74 and unrelated at 0.88–1.00.
+
+Measure before you move it, because real traffic runs higher. On 52 logged
+searches from two profiles in daily use the best hit was never closer than
+0.62, and most sat between 0.75 and 0.88 — above the seeded "related" band,
+yet those were the useful results. Short keyword queries are simply further
+from a stored sentence than a seeded phrase is. Raise the floor if nonsense
+queries return facts; before lowering it, read `/api/{profile}/queries` and
+check what distances your own good searches actually produce.
 
 ## Rotating a token
 
