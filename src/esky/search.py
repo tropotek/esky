@@ -183,10 +183,9 @@ def hybrid_search_detailed(conn, embedder, query: str, limit: int = 8,
 
     RRF is used rather than score normalisation because BM25 scores and cosine
     distances are not on comparable scales, and rank fusion needs no per-corpus
-    tuning (spec 5). `facts_weight` is vestigial: it weighted the curated
-    layer against an observations layer that was specced and then dropped, and
-    with one layer it does nothing. Left in place because removing it buys
-    nothing and costs a signature change.
+    tuning (spec 5). `facts_weight` scales the one layer there is, so it
+    changes nothing; it is kept because removing it costs a signature change
+    and buys nothing.
     """
     pool = max(limit * 5, 20)
     scores: dict[int, float] = {}

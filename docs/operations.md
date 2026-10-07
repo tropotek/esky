@@ -42,11 +42,10 @@ still hands the agent confident-looking facts. Measured L2 distances over
 unit-normalised `bge-small` vectors on a seeded corpus put related queries at
 0.54–0.74 and unrelated at 0.88–1.00.
 
-Measure before you move it, because real traffic runs higher. On 52 logged
-searches from two profiles in daily use the best hit was never closer than
-0.62, and most sat between 0.75 and 0.88 — above the seeded "related" band,
-yet those were the useful results. Short keyword queries are simply further
-from a stored sentence than a seeded phrase is. Raise the floor if nonsense
+Measure before you move it, because real traffic runs higher than that corpus
+suggests. Agents send short keyword queries, which sit further from a stored
+sentence than a seeded phrase does, so useful hits land between 0.62 and 0.88 —
+most of them above the seeded "related" band. Raise the floor if nonsense
 queries return facts; before lowering it, read `/api/{profile}/queries` and
 check what distances your own good searches actually produce.
 

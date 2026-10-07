@@ -77,8 +77,8 @@ it with *"search your memory for X"*, or *"remember that I prefer X"*.
 **A connected server that nobody calls looks exactly like a broken one.**
 Esky gives an agent tools, not reflexes: it searches memory when you ask, or
 when its instructions tell it to, and otherwise records facts it will never
-read back. There is no session-start hook and none is planned — standing
-instructions do the job, and they need no extra software on each machine.
+read back. There is no session-start hook: standing instructions do the job,
+and they need no extra software on each machine.
 
 So put this in whichever file your client loads as standing instructions, at
 the **global** level so it applies in every project and not just the one you

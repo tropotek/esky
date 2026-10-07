@@ -16,10 +16,9 @@ Nothing leaves your network. Embeddings run in-process on ONNX; there is no
 API key and no outbound call.
 
 **Esky is finished.** It does one thing — durable facts an agent searches and
-writes on purpose — and that is the whole scope. Two further phases were
-planned and both dropped after real use showed they were not needed: automatic
-transcript capture, and a local model distilling facts overnight behind a
-review queue. Expect fixes and sharpening, not new layers.
+writes on purpose — and that is the whole scope. It does not read your
+transcripts, infer facts for you, or inject anything at session start. Expect
+fixes and sharpening, not new layers.
 
 ## Why profiles are separate files
 

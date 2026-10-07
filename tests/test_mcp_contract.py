@@ -53,9 +53,9 @@ async def test_update_accepts_a_reason_and_supersedes(mcp, as_work):
 
 
 async def test_search_exposes_no_tag_filter(mcp):
-    """The filter was used in 1 search out of 215 while its description cost
-    context in every session. Tags still reach search through the text the
-    exact-ID step matches, so this guards the signature, not the feature."""
+    """A parameter description costs context in every session, and tags reach
+    search through the text the exact-ID step matches anyway. This guards the
+    signature, not the feature."""
     async with Client(mcp) as client:
         search = next(t for t in await client.list_tools()
                       if t.name == "memory_search")

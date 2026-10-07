@@ -29,13 +29,11 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
         something about how the user works, what a project uses, or why a
         decision was made. Prefer searching over guessing.
         """
-        # No tag filter on purpose. It was offered here for its first three
-        # weeks and used in 1 search out of 215, while its description cost
-        # context in every session. Tags still earn their keep on the write
-        # side: they are part of what the exact-ID step matches against, so a
-        # fact tagged "sc-3469" is found by searching for that ID. Filtering
-        # survives in search.py for REST and CLI callers, so restoring the
-        # parameter is a signature change, not a rewrite.
+        # No tag filter on purpose: a parameter description costs context in
+        # every session, and tags already reach search from the write side —
+        # the exact-ID step matches against them, so a fact tagged "sc-3469"
+        # is found by searching for that ID. Filtering lives in search.py for
+        # REST and CLI callers.
         with _repo() as (conn, _):
             result = hybrid_search_detailed(
                 conn, embedder, query, limit=limit,

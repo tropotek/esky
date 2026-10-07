@@ -10,39 +10,29 @@ stops looking and would miss this.
 A self-hosted MCP memory server for the LAN. Agents read and write durable
 memory over streamable HTTP; each context is a separate SQLite file.
 
-## Project state
+## Scope
 
-- **Phase 1 (curated layer) — done.** Profiles, `facts`, FTS5 + sqlite-vec,
-  RRF search, five MCP tools, CLI, Docker.
-- **Phase 1.5 (per-profile bearer tokens) — done.** Deployed and in use from
-  two machines.
-- **Query log — done.** Every `memory_search` is recorded to `queries`, read
-  back over REST. It is how the store gets judged: a search that matched
-  nothing is the only evidence of what memory is missing, and it is
-  unrecoverable unless written down as it happens. Reviewing it is what
-  dropped phases 2 and 3.
-- **Phase 2 (capture) — dropped 2026-10-07.** It would have added `sessions` /
-  `observations`, an ingest endpoint, a `SessionStart` recall digest, Claude
-  Code hooks and retention pruning. Three weeks of use settled it: 215
-  searches, 3% returning nothing, against 82 curated facts. Transcript rows
-  would dilute the layer that is working, and a hook is a second thing to
-  install on every machine that fails silently when forgotten. Spec §4.2, §8
-  and §11.
-- **Phase 3 (distillation) — dropped 2026-10-07.** It would have added a
-  nightly llama.cpp batch, a `candidates` airlock, a `memory_review` tool and a
-  GPU-guarded cron script. A local model that should derive facts now gets its
-  own profile and a token for it, and writes through `memory_write` like any
-  other agent: per-profile tokens make that an enforced boundary, where a
-  review queue only holds as long as someone keeps draining it. Do not build
-  any of it back without a decision to reverse this. Spec §9 and §4.3.
+Profiles as isolated SQLite files, `facts`, hybrid FTS5 + sqlite-vec search
+fused with RRF, five MCP tools, per-profile bearer tokens, a query log, a CLI
+and Docker. Deployed and in use from two machines.
+
+**That is the whole project.** There is no transcript capture, no observations
+layer, no local-model distillation, no candidate review queue and no
+session-start hook. Each was considered and decided against; the reasoning is
+in `_notes/docs/decisions.md`. Read it before proposing any of them, and treat
+a proposal as reversing a decision rather than filling a gap.
+
+Work from here is fixes and sharpening, judged against the query log.
 
 ## Design documents
 
 **`_notes/` is gitignored — read it before planning anything.**
 
-- `_notes/docs/specs/` — the design. The phase breakdown and the deliberately
-  deferred decisions live here.
-- `_notes/docs/plans/` — implementation plans, one per phase.
+- `_notes/docs/` — the design, and `decisions.md`: why things are as they are
+  and what was decided against. Tracked files carry no history or proposals,
+  so this is the only record of either.
+- `_notes/docs/plans/` — implementation plans, records of what was built at
+  the time and not edited to match later decisions.
 - `_notes/research/` — research and future ideas that are not yet committed
   work: retrieval behaviour as the store grows, transport and deployment,
   loose ends and open questions.
@@ -95,8 +85,7 @@ without a rebuild. The prod container does not — see above.
 **One ASGI app, two surfaces** (`app.py`). MCP at `/mcp/{profile}` is what
 agents talk to and is kept to five tools, because every tool description costs
 context in every session. REST at `/api/…` is for ops and for a human reading
-the store — stats, profiles, health and the query log. Nothing is planned for
-either surface; see the project state above.
+the store — stats, profiles, health and the query log.
 
 **Profile routing is an ASGI wrapper, not Starlette routing.** `Mount` does
 not support path parameters, so `ProfileDispatcher` strips the leading
@@ -148,13 +137,11 @@ Breaking these silently breaks the guarantees the design rests on:
 - **Curated facts are never hard-deleted.** `memory_forget` sets
   `retired_at`; a text change via `memory_update` retires and supersedes
   rather than mutating. **Every retirement records a `retired_reason`** — the
-  caller's if given, otherwise `superseded by <new uid>`. It was NULL on every
-  supersession until 2026-10-07, which left 28 of the personal profile's
-  retirements with no account of why the old wording stopped being right. The
-  supersession link alone cannot say whether a fact was wrong, went stale or
-  was only sharpened, and nothing can reconstruct that later, so the reason is
-  asked for at the tool and never left to default silently where a caller
-  could have supplied it.
+  caller's if given, otherwise `superseded by <new uid>`. The supersession link
+  alone cannot say whether a fact was wrong, went stale or was only sharpened,
+  and nothing can reconstruct that later, so the reason is asked for at the
+  tool and never left to default silently where a caller could have supplied
+  it.
 - **FTS and vector indexes are maintained explicitly in `FactsRepo`**, not by
   triggers. The vector index needs an embedding computed in Python, so
   splitting the work between triggers and code would leave two places to get
@@ -173,26 +160,22 @@ Breaking these silently breaks the guarantees the design rests on:
   segment, since the name becomes a filename. `exists_safe` turns an invalid
   name into "no" rather than a 500, so the HTTP path never leaks the
   difference.
-- **`memory_search` takes no tag filter.** `search.py` still supports one
-  and the REST and CLI callers may use it, but the MCP tool deliberately
-  does not expose it: offered for three weeks, it was used in 1 search out
-  of 215 while costing description context in every session. Tags are a
-  write-side concern that the exact-ID step matches against. Do not add the
-  parameter back without evidence from `/api/{profile}/queries`.
+- **`memory_search` takes no tag filter.** `search.py` supports one and the
+  REST and CLI callers may use it, but the MCP tool deliberately does not
+  expose it, because a parameter description costs context in every session.
+  Tags are a write-side concern that the exact-ID step matches against. Do not
+  add the parameter back without evidence from `/api/{profile}/queries`.
 - **Vector search needs its distance floor.** KNN returns k neighbours however
   unrelated, so without `ESKY_MAX_DISTANCE` a nonsense query hands the agent
   confident-looking facts. Measured L2 over unit-normalised `bge-small` on a
   seeded corpus: related 0.54–0.74, unrelated 0.88–1.00.
 
-  **Live traffic sits higher than that, so do not tighten the floor below
-  0.9.** Across 52 instrumented searches in the two deployed profiles the top
-  hit never fell below 0.62, and 27 of the work profile's 32 landed in
-  0.75–0.88 — the band the seeded numbers call weak — while being the results
-  the user judged good. Real queries are keyword-shaped rather than
-  sentence-shaped, which pushes cosine distance up, and RRF means the FTS side
-  is carrying more of the ranking than the vector distance suggests. Judge a
-  floor change against `/api/{profile}/queries`, not against the seeded
-  corpus.
+  **Real traffic sits higher, so do not tighten the floor below 0.9.** Agents
+  send keyword-shaped queries rather than sentences, which pushes cosine
+  distance up: useful hits land between 0.62 and 0.88, most of them above 0.75,
+  where the seeded numbers would call them weak. RRF means the FTS side carries
+  more of the ranking than the vector distance suggests. Judge a floor change
+  against `/api/{profile}/queries`, never against the seeded corpus.
 
 ## Testing
 

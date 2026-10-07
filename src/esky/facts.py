@@ -146,11 +146,10 @@ class FactsRepo:
                 title=_clean_title(title, row["title"]),
             )
             # Written before the old one is retired, because the fallback
-            # reason needs the new uid. Falling back at all keeps the column
-            # from being silently NULL on every supersession, which is how it
-            # stood for 28 of the personal profile's retirements: the link
-            # lived only on the new fact, so reading the old one told you
-            # nothing about what replaced it.
+            # reason needs the new uid. The fallback matters: without it the
+            # column is NULL on every supersession, and since the link lives
+            # only on the new fact, reading a retired one would say nothing
+            # about what replaced it.
             self.retire(uid, reason=reason or f"superseded by {superseding.uid}")
             return superseding
 
