@@ -66,7 +66,7 @@ def build_app(settings: Settings):
     return Starlette(
         routes=[
             Mount("/mcp", app=ProfileDispatcher(mcp_app, registry)),
-            Mount("/", app=build_api(registry)),
+            Mount("/", app=build_api(registry, embedder)),
         ],
         lifespan=mcp_app.lifespan,
     )

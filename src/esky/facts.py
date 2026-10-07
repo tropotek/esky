@@ -198,12 +198,24 @@ class FactsRepo:
             )
         return len(rows)
 
-    def recent(self, limit: int = 10, kind: str | None = None) -> list[Fact]:
+    def recent(self, limit: int = 10, kind: str | None = None,
+               offset: int = 0) -> list[Fact]:
         sql = "SELECT * FROM facts WHERE retired_at IS NULL"
         params: list = []
         if kind is not None:
             sql += " AND kind = ?"
             params.append(kind)
-        sql += " ORDER BY updated_at DESC, id DESC LIMIT ?"
-        params.append(limit)
+        sql += " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
         return [_row_to_fact(r) for r in self.conn.execute(sql, params)]
+
+    def count_live(self, kind: str | None = None) -> int:
+        """How many live facts the store holds — the total `recent` pages
+        through. Separate query because `recent` applies LIMIT and OFFSET; its
+        row count would describe the page, not the store."""
+        sql = "SELECT count(*) AS n FROM facts WHERE retired_at IS NULL"
+        params: list = []
+        if kind is not None:
+            sql += " AND kind = ?"
+            params.append(kind)
+        return self.conn.execute(sql, params).fetchone()["n"]

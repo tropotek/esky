@@ -94,3 +94,77 @@ def test_queries_summary_rejects_a_nonsense_window(client):
 
 def test_queries_summary_for_unknown_profile_is_401(client):
     assert client.get("/api/nope/queries/summary").status_code == 401
+
+
+def _seed(client, texts):
+    """Write a batch of facts over MCP so the facts endpoint has something to
+    page through. Writing them one at a time via the repo would need a second
+    database connection to the same file."""
+    from esky.auth import issue_token
+    from esky.facts import FactsRepo
+    from esky.profiles import ProfileRegistry
+    from pathlib import Path
+    import os
+    registry = ProfileRegistry(Path(os.environ["ESKY_DATA_DIR"]))
+    conn = registry.connect("work")
+    try:
+        from esky.embedding import Embedder
+        from esky.config import load_settings
+        repo = FactsRepo(conn, Embedder(load_settings().embed_model))
+        return [repo.write(t, "project", []) for t in texts]
+    finally:
+        conn.close()
+
+
+def test_facts_lists_live_memories_with_a_total_and_zero_offset(client):
+    _seed(client, ["one", "two", "three"])
+    body = client.get("/api/work/facts?limit=10").json()
+    assert body["profile"] == "work"
+    assert body["total"] == 3
+    assert body["limit"] == 10
+    assert body["offset"] == 0
+    assert [f["text"] for f in body["facts"]] == ["three", "two", "one"]
+
+
+def test_facts_pages_with_offset(client):
+    _seed(client, ["one", "two", "three", "four"])
+    body = client.get("/api/work/facts?limit=2&offset=2").json()
+    assert body["total"] == 4
+    assert [f["text"] for f in body["facts"]] == ["two", "one"]
+
+
+def test_facts_search_returns_matches_with_total_matched(client):
+    """A search's total is `matched` from the hybrid searcher: how many hit
+    before the page's limit was applied, so the pager knows where the end is."""
+    _seed(client, ["docker runs the container",
+                   "redis caches the lookup",
+                   "docker compose brings it up"])
+    body = client.get("/api/work/facts?q=docker&limit=10").json()
+    assert body["q"] == "docker"
+    assert body["total"] >= 2
+    assert all("docker" in f["text"] for f in body["facts"][:2])
+
+
+def test_facts_defaults_to_fifty_per_page(client):
+    assert client.get("/api/work/facts").json()["limit"] == 50
+
+
+def test_facts_limit_is_capped(client):
+    assert client.get("/api/work/facts?limit=9999").json()["limit"] == 200
+
+
+def test_facts_rejects_a_negative_offset(client):
+    assert client.get("/api/work/facts?offset=-1").status_code == 400
+
+
+def test_facts_rejects_a_zero_limit(client):
+    assert client.get("/api/work/facts?limit=0").status_code == 400
+
+
+def test_facts_for_unknown_profile_is_401(client):
+    assert client.get("/api/nope/facts").status_code == 401
+
+
+def test_facts_without_a_token_is_401(client):
+    client.headers.pop("Authorization", None)
+    assert client.get("/api/work/facts").status_code == 401

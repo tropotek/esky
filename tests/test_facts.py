@@ -99,6 +99,22 @@ def test_recent_filters_by_research_kind(repo):
     assert [f.text for f in repo.recent(kind="research")] == ["a finding"]
 
 
+def test_recent_pages_through_results_with_offset(repo):
+    for i in range(5):
+        repo.write(f"item {i}", "project", [])
+    page = repo.recent(limit=2, offset=2)
+    assert [f.text for f in page] == ["item 2", "item 1"]
+
+
+def test_count_live_describes_the_store_not_the_page(repo):
+    for i in range(3):
+        repo.write(f"item {i}", "project", [])
+    gone = repo.write("retired", "project", [])
+    repo.retire(gone.uid)
+    assert repo.count_live() == 3
+    assert repo.count_live(kind="preference") == 0
+
+
 def test_write_stores_an_optional_title(repo):
     f = repo.write("the server listens on 8080", "project", [], title="server port")
     assert f.title == "server port"

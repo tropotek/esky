@@ -5,8 +5,16 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from esky.auth import UNAUTHORIZED_BODY, authorize
+from esky.facts import FactsRepo
 from esky.metrics import fact_stats, query_summary
 from esky.querylog import recent_queries
+from esky.search import hybrid_search_with_stats
+
+# The deepest page a search may address. Matches the posture elsewhere in the
+# codebase: the store is small, so paging past this is almost certainly a
+# crafted URL rather than real traffic, and expanding the pool further would
+# only make the search slower for everyone.
+_SEARCH_PAGING_CAP = 500
 
 
 def _positive_int(value, maximum: int) -> int:
@@ -21,7 +29,15 @@ def _positive_int(value, maximum: int) -> int:
     return min(number, maximum)
 
 
-def build_api(registry) -> Starlette:
+def _non_negative_int(value, maximum: int) -> int:
+    """Parse an offset. Zero is the first page; negative means SQLite ignores it."""
+    number = int(value)
+    if number < 0:
+        raise ValueError(number)
+    return min(number, maximum)
+
+
+def build_api(registry, embedder=None) -> Starlette:
     def unauthorized():
         return JSONResponse(UNAUTHORIZED_BODY, status_code=401)
 
@@ -105,10 +121,59 @@ def build_api(registry) -> Starlette:
             conn.close()
         return JSONResponse({"profile": name, **body})
 
+    async def facts(request):
+        """A page of live facts, either most-recent-first or hybrid-searched.
+
+        This is the human-facing surface the client's list page reads, which is
+        why pagination lives here rather than on an MCP tool: agents do not
+        page, and every parameter description costs context in every session.
+        It also means a human browsing their own store does not pollute the
+        query log the way an MCP `memory_search` would.
+        """
+        name = request.path_params["profile"]
+        if not authorize(registry, name, request.headers.get("authorization")):
+            return unauthorized()
+        try:
+            limit = _positive_int(request.query_params.get("limit", 50), 200)
+            offset = _non_negative_int(request.query_params.get("offset", 0),
+                                       _SEARCH_PAGING_CAP)
+        except ValueError:
+            return JSONResponse({"error": "invalid limit or offset"},
+                                status_code=400)
+        q = request.query_params.get("q", "").strip()
+
+        conn = registry.connect(name)
+        try:
+            if q == "":
+                repo = FactsRepo(conn, embedder)
+                page = [asdict(f) for f in repo.recent(limit=limit,
+                                                       offset=offset)]
+                total = repo.count_live()
+            elif embedder is None:
+                # The build omitted an embedder (unit tests often do). Search
+                # cannot run without one; refuse rather than return a quiet
+                # empty page that looks like "no matches".
+                return JSONResponse(
+                    {"error": "search is not configured on this server"},
+                    status_code=501)
+            else:
+                pool = min(offset + limit, _SEARCH_PAGING_CAP)
+                hits, matched = hybrid_search_with_stats(
+                    conn, embedder, q, limit=pool)
+                page = [asdict(h) for h in hits[offset:offset + limit]]
+                total = matched
+        finally:
+            conn.close()
+
+        return JSONResponse({"profile": name, "q": q, "limit": limit,
+                             "offset": offset, "total": total,
+                             "facts": page})
+
     return Starlette(routes=[
         Route("/health", health),
         Route("/api/profiles", profiles),
         Route("/api/{profile}/stats", stats),
         Route("/api/{profile}/queries", queries),
         Route("/api/{profile}/queries/summary", queries_summary),
+        Route("/api/{profile}/facts", facts),
     ])
