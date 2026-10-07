@@ -75,13 +75,14 @@ it with *"search your memory for X"*, or *"remember that I prefer X"*.
 ## Tell your agent to use it
 
 **A connected server that nobody calls looks exactly like a broken one.**
-Phase 1 gives an agent tools, not reflexes: it searches memory when you ask, or
+Esky gives an agent tools, not reflexes: it searches memory when you ask, or
 when its instructions tell it to, and otherwise records facts it will never
-read back. Automatic recall at session start is Phase 2.
+read back. There is no session-start hook and none is planned — standing
+instructions do the job, and they need no extra software on each machine.
 
-Until then, put this in whichever file your client loads as standing
-instructions, at the **global** level so it applies in every project and not
-just the one you set the server up in:
+So put this in whichever file your client loads as standing instructions, at
+the **global** level so it applies in every project and not just the one you
+set the server up in:
 
 ```markdown
 ## Memory

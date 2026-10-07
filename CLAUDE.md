@@ -17,12 +17,17 @@ memory over streamable HTTP; each context is a separate SQLite file.
 - **Phase 1.5 (per-profile bearer tokens) — done.** Deployed and in use from
   two machines.
 - **Query log — done.** Every `memory_search` is recorded to `queries`, read
-  back over REST. Groundwork for Phase 2, not part of it: the recall digest
-  needs evidence of what memory failed to answer, and that only exists if it
-  was captured as it happened.
-- **Phase 2 (capture) — not started, and the last phase.** `sessions` /
-  `observations`, ingest endpoint, `SessionStart` recall digest, Claude Code
-  hooks, retention pruning.
+  back over REST. It is how the store gets judged: a search that matched
+  nothing is the only evidence of what memory is missing, and it is
+  unrecoverable unless written down as it happens. Reviewing it is what
+  dropped phases 2 and 3.
+- **Phase 2 (capture) — dropped 2026-10-07.** It would have added `sessions` /
+  `observations`, an ingest endpoint, a `SessionStart` recall digest, Claude
+  Code hooks and retention pruning. Three weeks of use settled it: 215
+  searches, 3% returning nothing, against 82 curated facts. Transcript rows
+  would dilute the layer that is working, and a hook is a second thing to
+  install on every machine that fails silently when forgotten. Spec §4.2, §8
+  and §11.
 - **Phase 3 (distillation) — dropped 2026-10-07.** It would have added a
   nightly llama.cpp batch, a `candidates` airlock, a `memory_review` tool and a
   GPU-guarded cron script. A local model that should derive facts now gets its
@@ -89,8 +94,9 @@ without a rebuild. The prod container does not — see above.
 
 **One ASGI app, two surfaces** (`app.py`). MCP at `/mcp/{profile}` is what
 agents talk to and is kept to five tools, because every tool description costs
-context in every session. REST at `/api/…` is for hooks, cron and ops. Phase 2
-adds ingest and recall to the REST side, not the MCP side.
+context in every session. REST at `/api/…` is for ops and for a human reading
+the store — stats, profiles, health and the query log. Nothing is planned for
+either surface; see the project state above.
 
 **Profile routing is an ASGI wrapper, not Starlette routing.** `Mount` does
 not support path parameters, so `ProfileDispatcher` strips the leading
@@ -109,8 +115,8 @@ before it reaches a tool.
 `returned_count` is bounded by the caller's `limit`, so only `matched_count`
 distinguishes a store that knew nothing from one that knew plenty. A search that
 matches nothing is the only evidence of what the store is missing, and it is
-unrecoverable unless written down when it happens — which is what Phase 2's
-recall digest has to be designed against. The log lives in the profile database
+unrecoverable unless written down when it happens. The log lives in the
+profile database
 so it inherits profile isolation, and it is read over REST
 (`/api/{profile}/queries`) rather than as a sixth MCP tool, because it is for a
 human reviewing the store and every tool description costs context in every
