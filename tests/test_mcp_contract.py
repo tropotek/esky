@@ -30,6 +30,28 @@ async def test_exposes_exactly_five_tools(mcp):
                      "memory_forget", "memory_recent"}
 
 
+async def test_update_asks_why_the_text_changed(mcp):
+    async with Client(mcp) as client:
+        update = next(t for t in await client.list_tools()
+                      if t.name == "memory_update")
+    assert "reason" in update.input_schema["properties"]
+
+
+async def test_update_accepts_a_reason_and_supersedes(mcp, as_work):
+    async with Client(mcp) as client:
+        written = await client.call_tool("memory_write", {
+            "text": "the server lives at 192.168.1.5", "kind": "project",
+            "tags": []})
+        await client.call_tool("memory_update", {
+            "uid": written.data["uid"],
+            "text": "the server lives at 192.168.1.9",
+            "reason": "host was reassigned"})
+        recent = await client.call_tool("memory_recent", {"limit": 10})
+    # The reason itself is asserted in test_facts; over MCP the retired fact is
+    # not readable, so this pins that the tool accepts it and still supersedes.
+    assert recent.data[0]["supersedes"] == written.data["uid"]
+
+
 async def test_search_exposes_no_tag_filter(mcp):
     """The filter was used in 1 search out of 215 while its description cost
     context in every session. Tags still reach search through the text the

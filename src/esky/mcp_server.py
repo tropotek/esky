@@ -88,14 +88,20 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
 
     @mcp.tool
     def memory_update(uid: str, text: str | None = None, kind: str | None = None,
-                      tags: list[str] | None = None,
-                      title: str | None = None) -> dict:
+                      tags: list[str] | None = None, title: str | None = None,
+                      reason: str | None = None) -> dict:
         """Amend an existing fact. Changing its text retires the old version
         and records the new one as superseding it, so history is preserved.
-        Changing only the title, kind or tags amends it in place."""
+        Changing only the title, kind or tags amends it in place.
+
+        When you change the text, give a short `reason` for why the old
+        wording stopped being right — that it was wrong, that it went stale, or
+        that you only sharpened it. The two versions are both kept, but nothing
+        in them says which of those happened, and you are the only one who
+        knows. Omit it on an in-place amendment, where nothing is retired."""
         with _repo() as (_, repo):
-            return asdict(
-                repo.update(uid, text=text, kind=kind, tags=tags, title=title))
+            return asdict(repo.update(uid, text=text, kind=kind, tags=tags,
+                                      title=title, reason=reason))
 
     @mcp.tool
     def memory_forget(uid: str, reason: str | None = None) -> dict:

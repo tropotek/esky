@@ -133,6 +133,29 @@ def test_text_change_can_replace_the_title(repo):
     assert updated.title == "listen port"
 
 
+def test_supersession_records_why_when_given_one(repo):
+    f = repo.write("the server lives at 192.168.1.5", "project", [])
+    repo.update(f.uid, text="the server lives at 192.168.1.9",
+                reason="host was reassigned")
+    assert repo.get(f.uid).retired_reason == "host was reassigned"
+
+
+def test_supersession_names_its_replacement_when_not(repo):
+    """The link is already recorded on the new fact, but a reader of the old
+    one should not have to know that to find out what happened to it."""
+    f = repo.write("port is 8080", "project", [])
+    new = repo.update(f.uid, text="port is 9090")
+    assert repo.get(f.uid).retired_reason == f"superseded by {new.uid}"
+
+
+def test_amend_in_place_ignores_a_reason(repo):
+    """Nothing is retired, so there is nothing for a reason to explain."""
+    f = repo.write("a fact", "project", [], title="old")
+    amended = repo.update(f.uid, title="new", reason="not applicable here")
+    assert amended.uid == f.uid
+    assert amended.retired_at is None and amended.retired_reason is None
+
+
 def test_retire_records_its_reason(repo):
     f = repo.write("the server lives at 192.168.1.5", "project", [])
     repo.retire(f.uid, reason="host was reassigned")

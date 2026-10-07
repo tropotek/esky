@@ -118,7 +118,15 @@ class FactsRepo:
 
     def update(self, uid: str, text: str | None = None, kind: str | None = None,
                tags: Sequence[str] | None = None,
-               title: str | None = None) -> Fact:
+               title: str | None = None, reason: str | None = None) -> Fact:
+        """Amend a fact. A text change retires and supersedes; anything else
+        amends in place.
+
+        `reason` says why the old text stopped being right — wrong, stale, or
+        merely sharpened. Only the caller knows which, and no later reader can
+        reconstruct it from the two versions, so it is worth asking for. It is
+        ignored on an in-place amendment, where nothing is retired.
+        """
         row = self.conn.execute("SELECT * FROM facts WHERE uid = ?", (uid,)).fetchone()
         if row is None:
             raise FactNotFound(uid)
@@ -129,8 +137,7 @@ class FactsRepo:
             new_kind = kind or row["kind"]
             if new_kind not in KINDS:
                 raise InvalidKind(new_kind)
-            self.retire(uid)
-            return self.write(
+            superseding = self.write(
                 text=text,
                 kind=new_kind,
                 tags=list(tags) if tags is not None else json.loads(row["tags"]),
@@ -138,6 +145,14 @@ class FactsRepo:
                 supersedes=uid,
                 title=_clean_title(title, row["title"]),
             )
+            # Written before the old one is retired, because the fallback
+            # reason needs the new uid. Falling back at all keeps the column
+            # from being silently NULL on every supersession, which is how it
+            # stood for 28 of the personal profile's retirements: the link
+            # lived only on the new fact, so reading the old one told you
+            # nothing about what replaced it.
+            self.retire(uid, reason=reason or f"superseded by {superseding.uid}")
+            return superseding
 
         new_kind = kind or row["kind"]
         if new_kind not in KINDS:

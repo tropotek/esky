@@ -134,7 +134,14 @@ Breaking these silently breaks the guarantees the design rests on:
   distinct 404 would make the endpoint a profile-name oracle.
 - **Curated facts are never hard-deleted.** `memory_forget` sets
   `retired_at`; a text change via `memory_update` retires and supersedes
-  rather than mutating.
+  rather than mutating. **Every retirement records a `retired_reason`** — the
+  caller's if given, otherwise `superseded by <new uid>`. It was NULL on every
+  supersession until 2026-10-07, which left 28 of the personal profile's
+  retirements with no account of why the old wording stopped being right. The
+  supersession link alone cannot say whether a fact was wrong, went stale or
+  was only sharpened, and nothing can reconstruct that later, so the reason is
+  asked for at the tool and never left to default silently where a caller
+  could have supplied it.
 - **FTS and vector indexes are maintained explicitly in `FactsRepo`**, not by
   triggers. The vector index needs an embedding computed in Python, so
   splitting the work between triggers and code would leave two places to get
