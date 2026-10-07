@@ -20,10 +20,16 @@ memory over streamable HTTP; each context is a separate SQLite file.
   back over REST. Groundwork for Phase 2, not part of it: the recall digest
   needs evidence of what memory failed to answer, and that only exists if it
   was captured as it happened.
-- **Phase 2 (capture) — not started.** `sessions` / `observations`, ingest
-  endpoint, `SessionStart` recall digest, Claude Code hooks, retention pruning.
-- **Phase 3 (distillation) — not started.** llama.cpp nightly batch,
-  `candidates` airlock, `memory_review` tool, GPU-guarded cron script.
+- **Phase 2 (capture) — not started, and the last phase.** `sessions` /
+  `observations`, ingest endpoint, `SessionStart` recall digest, Claude Code
+  hooks, retention pruning.
+- **Phase 3 (distillation) — dropped 2026-10-07.** It would have added a
+  nightly llama.cpp batch, a `candidates` airlock, a `memory_review` tool and a
+  GPU-guarded cron script. A local model that should derive facts now gets its
+  own profile and a token for it, and writes through `memory_write` like any
+  other agent: per-profile tokens make that an enforced boundary, where a
+  review queue only holds as long as someone keeps draining it. Do not build
+  any of it back without a decision to reverse this. Spec §9 and §4.3.
 
 ## Design documents
 
@@ -118,10 +124,11 @@ vector index cannot be rebuilt in SQL (embeddings come from Python), so a
 migration must never assume it can. Bump `SCHEMA_VERSION` and run
 `esky profile migrate` against every existing profile.
 
-**Two inference paths, deliberately.** Embeddings are in-process
-(`fastembed`/ONNX) because they sit on the write path and a write must not
-fail because a service is down. Phase 3's distillation is external and
-asynchronous, where an outage costs only latency.
+**One inference path, deliberately.** Embeddings are in-process
+(`fastembed`/ONNX) because they sit on the write path and a write must not fail
+because a service is down. Nothing else in the server infers: deriving facts
+from transcripts belongs to an agent holding a profile token, not to a service
+inside Esky.
 
 ## Invariants
 
