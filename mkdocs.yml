@@ -10,23 +10,41 @@ exclude_docs: |
 
 theme:
   name: material
+  icon:
+    logo: material/snowflake
+    repo: fontawesome/brands/github
+  favicon: assets/favicon.svg
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
+      primary: cyan
+      accent: light blue
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
+      primary: cyan
+      accent: light blue
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   features:
+    - navigation.tabs
+    - navigation.sections
     - navigation.indexes
     - navigation.top
+    - navigation.footer
     - search.suggest
+    - search.highlight
     - content.code.copy
     - content.action.edit
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/tropotek/esky
 
 nav:
   - Home: index.md
