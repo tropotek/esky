@@ -23,6 +23,18 @@ _BUCKETS = (
     ("11+", 11, None),
 )
 
+# Fixed thresholds, in days, for the live-store age histogram. First-match
+# wins, so "older" catches anything beyond the last bound. Chosen for the
+# review cadence a human reading the dashboard works at, not to describe the
+# raw distribution — these are the lines decisions sit on.
+_AGE_BUCKETS = (
+    ("≤ 7 days", 7),
+    ("≤ 30 days", 30),
+    ("≤ 90 days", 90),
+    ("≤ 1 year", 365),
+    ("older", None),
+)
+
 
 def _today(now: str | None) -> date:
     if now is None:
@@ -121,14 +133,18 @@ def query_summary(conn: sqlite3.Connection, days: int = 30, top: int = 10,
         top)
 
     top_facts = [
-        {"uid": r["top_uid"], "count": r["n"], "title": r["title"]}
+        {"uid": r["top_uid"], "count": r["n"], "title": r["title"],
+         "updated_at": r["updated_at"]}
         for r in conn.execute(
-            "SELECT q.top_uid, count(*) AS n, f.title FROM queries q "
+            "SELECT q.top_uid, count(*) AS n, f.title, f.updated_at "
+            "FROM queries q "
             "LEFT JOIN facts f ON f.uid = q.top_uid "
             "WHERE q.created_at BETWEEN ? AND ? AND q.top_uid IS NOT NULL "
             "GROUP BY q.top_uid ORDER BY n DESC, q.top_uid LIMIT ?",
             (lo, hi, top))
     ]
+
+    novelty = _novelty(conn, start, end, days)
 
     return {
         "days": days,
@@ -145,7 +161,46 @@ def query_summary(conn: sqlite3.Connection, days: int = 30, top: int = 10,
         "top_queries": top_queries,
         "top_tags": top_tags,
         "top_facts": top_facts,
+        "novelty": novelty,
     }
+
+
+def _novelty(conn: sqlite3.Connection, start: date, end: date,
+             days: int) -> dict:
+    """Distinct query texts in the window, split by whether they appeared in
+    the equal window immediately before it.
+
+    Each distinct text contributes once, on its first-seen date within the
+    current window. Counting every search would overweight a term asked ten
+    times in a row; "exploring new ground vs. looping" is a question about
+    *what* is being asked, not how often.
+    """
+    prior_lo = (start - timedelta(days=days)).isoformat()
+    prior_hi = (start - timedelta(days=1)).isoformat() + "￿"
+    lo = start.isoformat()
+    hi = end.isoformat() + "￿"
+
+    prior = {r["query"] for r in conn.execute(
+        "SELECT DISTINCT query FROM queries WHERE created_at BETWEEN ? AND ?",
+        (prior_lo, prior_hi))}
+
+    per_day_new = {d: 0 for d in _dates(start, end)}
+    per_day_repeat = {d: 0 for d in _dates(start, end)}
+    new_total = repeat_total = 0
+    for row in conn.execute(
+            "SELECT query, min(substr(created_at, 1, 10)) AS first_day "
+            "FROM queries WHERE created_at BETWEEN ? AND ? GROUP BY query",
+            (lo, hi)):
+        if row["query"] in prior:
+            per_day_repeat[row["first_day"]] += 1
+            repeat_total += 1
+        else:
+            per_day_new[row["first_day"]] += 1
+            new_total += 1
+
+    daily = [{"date": d, "new": per_day_new[d], "repeat": per_day_repeat[d]}
+             for d in _dates(start, end)]
+    return {"new": new_total, "repeat": repeat_total, "daily": daily}
 
 
 def fact_stats(conn: sqlite3.Connection, days: int = 30, top: int = 10,
@@ -184,6 +239,8 @@ def fact_stats(conn: sqlite3.Connection, days: int = 30, top: int = 10,
         "SELECT min(created_at) AS oldest, max(created_at) AS newest "
         "FROM facts").fetchone()
 
+    age_buckets = _age_buckets(conn, _today(now))
+
     return {
         "facts": counts["live"] or 0,
         "retired": counts["retired"] or 0,
@@ -193,6 +250,27 @@ def fact_stats(conn: sqlite3.Connection, days: int = 30, top: int = 10,
         "kinds": kinds,
         "top_tags": top_tags,
         "daily": daily,
+        "age_buckets": age_buckets,
         "oldest": span["oldest"],
         "newest": span["newest"],
     }
+
+
+def _age_buckets(conn: sqlite3.Connection, today: date) -> list[dict]:
+    """How old live memories are, by fixed day thresholds.
+
+    Window-independent: this is a photograph of the store today, not activity
+    in the chosen window. Bucketed in Python because the live set is small and
+    first-match-wins reads cleaner as a loop than nested CASE WHEN.
+    """
+    counts = {label: 0 for label, _ in _AGE_BUCKETS}
+    for row in conn.execute(
+            "SELECT substr(created_at, 1, 10) AS day FROM facts "
+            "WHERE retired_at IS NULL"):
+        age = (today - date.fromisoformat(row["day"])).days
+        for label, threshold in _AGE_BUCKETS:
+            if threshold is None or age <= threshold:
+                counts[label] += 1
+                break
+    return [{"label": label, "count": counts[label]}
+            for label, _ in _AGE_BUCKETS]

@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import pytest
 
 from esky.facts import FactsRepo
@@ -134,7 +136,24 @@ def test_the_facts_that_answer_most_often_are_named(conn, repo):
              matched=1, top_uid=fact.uid)
 
     (top,) = query_summary(conn, days=7, now=NOW)["top_facts"]
-    assert top == {"uid": fact.uid, "count": 2, "title": "Deployment"}
+    assert top["uid"] == fact.uid
+    assert top["count"] == 2
+    assert top["title"] == "Deployment"
+    assert top["updated_at"] == fact.updated_at
+
+
+def test_top_facts_carry_updated_at_so_stale_answerers_can_be_flagged(conn, repo):
+    """The client decides what 'stale' means; the server just provides when the
+    answering memory was last touched."""
+    fact = repo.write("the deployment uses docker compose", "project", [],
+                      title="Deployment")
+    conn.execute("UPDATE facts SET updated_at = ? WHERE uid = ?",
+                 ("2025-02-14T09:00:00+00:00", fact.uid))
+    _log(conn, "deploy", "2026-09-18T09:00:00+00:00", returned=1,
+         matched=1, top_uid=fact.uid)
+
+    (top,) = query_summary(conn, days=7, now=NOW)["top_facts"]
+    assert top["updated_at"].startswith("2025-02-14")
 
 
 def test_a_top_fact_that_has_since_been_deleted_still_reports(conn):
@@ -143,7 +162,7 @@ def test_a_top_fact_that_has_since_been_deleted_still_reports(conn):
     _log(conn, "deploy", "2026-09-18T09:00:00+00:00", returned=1, top_uid="gone")
 
     (top,) = query_summary(conn, days=7, now=NOW)["top_facts"]
-    assert top == {"uid": "gone", "count": 1, "title": None}
+    assert top == {"uid": "gone", "count": 1, "title": None, "updated_at": None}
 
 
 def test_an_empty_log_summarises_to_zeroes_not_an_error(conn):
@@ -217,3 +236,86 @@ def test_fact_stats_on_an_empty_store_report_no_span(conn):
     assert stats["facts"] == 0
     assert stats["oldest"] is None
     assert stats["newest"] is None
+
+
+def test_age_buckets_sort_live_facts_by_how_old_they_are(conn, repo):
+    """A snapshot of the live store today: fixed thresholds, first-match wins,
+    independent of the window."""
+    def age(fact, days):
+        when = (date.fromisoformat("2026-09-19") - timedelta(days=days)).isoformat()
+        conn.execute("UPDATE facts SET created_at = ? WHERE uid = ?",
+                     (when + "T09:00:00+00:00", fact.uid))
+
+    age(repo.write("fresh", "project", []), 2)
+    age(repo.write("week", "project", []), 20)
+    age(repo.write("month", "project", []), 60)
+    age(repo.write("quarter", "project", []), 200)
+    age(repo.write("ancient", "project", []), 1000)
+
+    buckets = {b["label"]: b["count"]
+               for b in fact_stats(conn, days=7, now=NOW)["age_buckets"]}
+    assert buckets == {"≤ 7 days": 1, "≤ 30 days": 1, "≤ 90 days": 1,
+                       "≤ 1 year": 1, "older": 1}
+
+
+def test_age_buckets_exclude_retired_facts(conn, repo):
+    """Retired memories are not what a reviewer is looking at — the histogram
+    describes the live store only."""
+    fact = repo.write("retired", "project", [])
+    repo.retire(fact.uid)
+
+    buckets = {b["label"]: b["count"]
+               for b in fact_stats(conn, days=7, now=NOW)["age_buckets"]}
+    assert sum(buckets.values()) == 0
+
+
+def test_age_buckets_match_the_exact_day_thresholds(conn, repo):
+    """A fact exactly N days old is in the N-day bucket, not the next one."""
+    for days in (7, 30, 90, 365):
+        fact = repo.write(f"d{days}", "project", [])
+        when = (date.fromisoformat("2026-09-19") - timedelta(days=days)).isoformat()
+        conn.execute("UPDATE facts SET created_at = ? WHERE uid = ?",
+                     (when + "T09:00:00+00:00", fact.uid))
+
+    buckets = {b["label"]: b["count"]
+               for b in fact_stats(conn, days=7, now=NOW)["age_buckets"]}
+    assert buckets == {"≤ 7 days": 1, "≤ 30 days": 1, "≤ 90 days": 1,
+                       "≤ 1 year": 1, "older": 0}
+
+
+def test_novelty_counts_queries_not_seen_in_the_prior_equal_window(conn):
+    """NOW is 2026-09-19 so days=7 is 2026-09-13..2026-09-19, and the prior
+    window is 2026-09-06..2026-09-12."""
+    _log(conn, "repeat", "2026-09-10T09:00:00+00:00")  # prior window
+    _log(conn, "repeat", "2026-09-15T09:00:00+00:00")  # current window
+    _log(conn, "fresh",  "2026-09-16T09:00:00+00:00")  # current window
+
+    novelty = query_summary(conn, days=7, now=NOW)["novelty"]
+    assert novelty["new"] == 1
+    assert novelty["repeat"] == 1
+
+
+def test_novelty_counts_each_distinct_query_once_on_its_first_seen_day(conn):
+    """A term asked ten times still counts once: 'exploring vs. looping' is a
+    question about what is being asked, not how often."""
+    for _ in range(5):
+        _log(conn, "fresh", "2026-09-18T09:00:00+00:00")
+    _log(conn, "fresh", "2026-09-19T09:00:00+00:00")
+
+    daily = {d["date"]: d for d in query_summary(conn, days=3, now=NOW)["novelty"]["daily"]}
+    assert daily["2026-09-18"]["new"] == 1
+    assert daily["2026-09-19"]["new"] == 0
+
+
+def test_novelty_is_zero_when_the_prior_window_is_empty(conn):
+    """With nothing to compare against every query reads as new, which is the
+    honest answer for a store with no history."""
+    _log(conn, "a", "2026-09-18T09:00:00+00:00")
+    _log(conn, "b", "2026-09-19T09:00:00+00:00")
+
+    novelty = query_summary(conn, days=7, now=NOW)["novelty"]
+    assert novelty == {
+        "new": 2, "repeat": 0,
+        "daily": novelty["daily"],  # checked separately
+    }
+    assert sum(d["new"] for d in novelty["daily"]) == 2
