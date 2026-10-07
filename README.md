@@ -15,6 +15,12 @@ it is still there next week.
 Nothing leaves your network. Embeddings run in-process on ONNX; there is no
 API key and no outbound call.
 
+**Esky is finished.** It does one thing — durable facts an agent searches and
+writes on purpose — and that is the whole scope. Two further phases were
+planned and both dropped after real use showed they were not needed: automatic
+transcript capture, and a local model distilling facts overnight behind a
+review queue. Expect fixes and sharpening, not new layers.
+
 ## Why profiles are separate files
 
 Each profile is its own SQLite database, selected by URL path:
@@ -113,12 +119,17 @@ claude mcp add -s user --transport http esky \
 Restart the client — `esky` should show as connected, with five tools (`/mcp`
 in Claude Code).
 
-**That is not the last step.** An agent with the tools connected still will
-not use them on its own; it needs an instruction in your client's global
-standing-instructions file — `~/.claude/CLAUDE.md` for Claude Code, `AGENTS.md`
-for most others — saying to search before assuming and write when it learns
-something durable. Without it the store is written to and never read from,
-which looks exactly like a server that is broken.
+**That is not the last step.** Esky gives an agent tools, not reflexes. It
+needs an instruction in your client's global standing-instructions file —
+`~/.claude/CLAUDE.md` for Claude Code, `AGENTS.md` for most others — saying to
+search before assuming and write when it learns something durable. Without it
+the store is written to and never read from, which looks exactly like a server
+that is broken.
+
+This is by design, not a gap waiting on a hook. A sentence of standing
+instructions turns out to be enough — the servers here field hundreds of
+searches a week on the strength of one — and it needs nothing installed on each
+machine beyond the MCP entry you just added.
 
 → **[Connecting an agent](docs/connecting.md)** — the LAN setup, the snippet
 to paste and where each client keeps it, and other MCP clients.
