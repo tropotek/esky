@@ -21,8 +21,7 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
             conn.close()
 
     @mcp.tool
-    def memory_search(query: str, limit: int = 8,
-                      tags: list[str] | None = None) -> list[dict]:
+    def memory_search(query: str, limit: int = 8) -> list[dict]:
         """Search long-term memory for durable facts about this user, their
         projects, preferences and past decisions.
 
@@ -30,14 +29,21 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
         something about how the user works, what a project uses, or why a
         decision was made. Prefer searching over guessing.
         """
+        # No tag filter on purpose. It was offered here for its first three
+        # weeks and used in 1 search out of 215, while its description cost
+        # context in every session. Tags still earn their keep on the write
+        # side: they are part of what the exact-ID step matches against, so a
+        # fact tagged "sc-3469" is found by searching for that ID. Filtering
+        # survives in search.py for REST and CLI callers, so restoring the
+        # parameter is a signature change, not a rewrite.
         with _repo() as (conn, _):
             result = hybrid_search_detailed(
-                conn, embedder, query, limit=limit, tags=tags,
+                conn, embedder, query, limit=limit,
                 rrf_k=settings.rrf_k, max_distance=settings.max_distance)
             hits = result.hits
             # What was asked, and whether memory could answer it. A search that
             # returns nothing is the only evidence of what the store is missing.
-            log_query(conn, query, hits, matched=result.matched, tags=tags,
+            log_query(conn, query, hits, matched=result.matched,
                       exact_count=result.exact_count,
                       top_distance=result.top_distance)
             return [asdict(h) for h in hits]
@@ -60,9 +66,10 @@ def build_mcp(registry, embedder, settings) -> FastMCP:
                        is the finding itself, not where it lives
           decision   - a choice made and the reasoning behind it
 
-        `tags` are for lookup by label. Tag a fact with any ticket key or
-        PR/issue number it concerns (e.g. "sc-3469", "#123"): searching for
-        an ID finds facts that contain it exactly, in the text or the tags.
+        `tags` widen what a search can match — there is no tag filter to
+        pass. Tag a fact with any ticket key or PR/issue number it concerns
+        (e.g. "sc-3469", "#123"): searching for an ID finds facts that
+        contain it exactly, in the text or the tags.
 
         `title` is an optional short label for scanning a list of facts; omit
         it when the text is already terse.

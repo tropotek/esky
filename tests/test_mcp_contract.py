@@ -30,6 +30,25 @@ async def test_exposes_exactly_five_tools(mcp):
                      "memory_forget", "memory_recent"}
 
 
+async def test_search_exposes_no_tag_filter(mcp):
+    """The filter was used in 1 search out of 215 while its description cost
+    context in every session. Tags still reach search through the text the
+    exact-ID step matches, so this guards the signature, not the feature."""
+    async with Client(mcp) as client:
+        search = next(t for t in await client.list_tools()
+                      if t.name == "memory_search")
+    assert set(search.input_schema["properties"]) == {"query", "limit"}
+
+
+async def test_tagged_fact_is_found_by_its_ticket_id(mcp, as_work):
+    async with Client(mcp) as client:
+        await client.call_tool("memory_write", {
+            "text": "the timetable import runs nightly",
+            "kind": "project", "tags": ["sc-3469"]})
+        result = await client.call_tool("memory_search", {"query": "sc-3469"})
+    assert "timetable import" in str(result.content)
+
+
 async def test_write_then_search_roundtrip(mcp, as_work):
     async with Client(mcp) as client:
         await client.call_tool("memory_write", {

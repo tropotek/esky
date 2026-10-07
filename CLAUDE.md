@@ -153,6 +153,12 @@ Breaking these silently breaks the guarantees the design rests on:
   segment, since the name becomes a filename. `exists_safe` turns an invalid
   name into "no" rather than a 500, so the HTTP path never leaks the
   difference.
+- **`memory_search` takes no tag filter.** `search.py` still supports one
+  and the REST and CLI callers may use it, but the MCP tool deliberately
+  does not expose it: offered for three weeks, it was used in 1 search out
+  of 215 while costing description context in every session. Tags are a
+  write-side concern that the exact-ID step matches against. Do not add the
+  parameter back without evidence from `/api/{profile}/queries`.
 - **Vector search needs its distance floor.** KNN returns k neighbours however
   unrelated, so without `ESKY_MAX_DISTANCE` a nonsense query hands the agent
   confident-looking facts. Measured L2 over unit-normalised `bge-small` on a
