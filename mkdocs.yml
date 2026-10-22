@@ -48,6 +48,7 @@ extra:
 
 nav:
   - Home: index.md
+  - Installing from the image: install-image.md
   - Connecting an agent: connecting.md
   - Tools and facts: tools.md
   - Operations: operations.md

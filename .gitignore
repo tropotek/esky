@@ -9,5 +9,6 @@ __pycache__/
 *.code-workspace
 .idea/
 
-/docker-compose-live.yml
+/docker-compose-*.yml
+!/docker-compose-example.yml
 /site/

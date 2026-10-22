@@ -40,6 +40,10 @@ silently swallow a week of memories.
 
 **Requirements:** Docker and Docker Compose. Nothing else — no local Python.
 
+To run a released image without the source, see
+[installing from the image](docs/install-image.md). The steps below build from
+a checkout.
+
 ```bash
 git clone <repo-url> esky
 cd esky

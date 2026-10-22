@@ -36,4 +36,9 @@ RUN mkdir -p /data /models && chmod 0777 /data && chmod -R a+rwX /models
 
 VOLUME ["/data"]
 EXPOSE 8080
+
+# Last, so a new tag does not invalidate the install and model layers.
+# Stamped by the release workflow with the tag (or commit) it was built from.
+ARG APP_VERSION=dev
+ENV ESKY_VERSION=${APP_VERSION}
 CMD ["esky", "serve"]

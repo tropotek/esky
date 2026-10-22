@@ -1,0 +1,11 @@
+.git
+.github
+.idea
+.env
+_notes
+data
+docs
+site
+tests
+**/__pycache__
+docker-compose*.yml
