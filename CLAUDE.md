@@ -64,8 +64,16 @@ docker compose exec esky esky token status <profile>
 docker compose exec esky esky profile migrate <name>      # after a schema bump
 docker compose exec esky esky profile reindex <name>      # after an embedding change
 curl -H "Authorization: Bearer $TOK" \
-  http://192.168.1.10:8011/api/<profile>/queries           # what was asked of memory
+  http://esky.tk/api/<profile>/queries                     # what was asked of memory
+bin/release vX.Y.Z                                        # test, tag, push: GHA publishes the image
 ```
+
+**The live store is not this checkout.** It runs on ws.tk from
+`ghcr.io/tropotek/esky:latest` (`~/Projects/Live/esky` there, project `z-esky`,
+`192.168.0.12:18025`, served as `http://esky.tk`). Deploying a change means a
+release, then `docker compose -f docker-compose-live.yml pull && … up -d` on
+ws.tk, plus `esky profile migrate` if the schema moved. `docker-compose-example.yml`
+is the install template.
 
 The `esky` service runs the **baked image**, not the source tree — only `./data`
 is mounted. Code changes need `docker compose build esky && docker compose up -d
