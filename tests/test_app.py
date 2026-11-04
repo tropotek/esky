@@ -157,6 +157,19 @@ def test_facts_rejects_a_negative_offset(client):
     assert client.get("/api/work/facts?offset=-1").status_code == 400
 
 
+def test_facts_listing_offset_is_not_capped(client):
+    """The search paging cap must not clamp the plain listing: a clamped
+    offset hands back the same page forever to a client paging by offset."""
+    body = client.get("/api/work/facts?offset=600").json()
+    assert body["offset"] == 600
+    assert body["facts"] == []
+
+
+def test_facts_search_rejects_an_offset_past_the_cap(client):
+    # Clamping would report an offset the caller never asked for.
+    assert client.get("/api/work/facts?q=docker&offset=501").status_code == 400
+
+
 def test_facts_rejects_a_zero_limit(client):
     assert client.get("/api/work/facts?limit=0").status_code == 400
 
