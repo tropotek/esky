@@ -29,12 +29,12 @@ def _positive_int(value, maximum: int) -> int:
     return min(number, maximum)
 
 
-def _non_negative_int(value, maximum: int) -> int:
+def _non_negative_int(value) -> int:
     """Parse an offset. Zero is the first page; negative means SQLite ignores it."""
     number = int(value)
     if number < 0:
         raise ValueError(number)
-    return min(number, maximum)
+    return number
 
 
 def build_api(registry, embedder=None) -> Starlette:
@@ -135,8 +135,7 @@ def build_api(registry, embedder=None) -> Starlette:
             return unauthorized()
         try:
             limit = _positive_int(request.query_params.get("limit", 50), 200)
-            offset = _non_negative_int(request.query_params.get("offset", 0),
-                                       _SEARCH_PAGING_CAP)
+            offset = _non_negative_int(request.query_params.get("offset", 0))
         except ValueError:
             return JSONResponse({"error": "invalid limit or offset"},
                                 status_code=400)
@@ -156,6 +155,12 @@ def build_api(registry, embedder=None) -> Starlette:
                 return JSONResponse(
                     {"error": "search is not configured on this server"},
                     status_code=501)
+            elif offset > _SEARCH_PAGING_CAP:
+                # Refuse rather than clamp: a clamped offset reports a page the
+                # caller never asked for. The listing above is not capped.
+                return JSONResponse(
+                    {"error": f"search offset may not exceed {_SEARCH_PAGING_CAP}"},
+                    status_code=400)
             else:
                 pool = min(offset + limit, _SEARCH_PAGING_CAP)
                 hits, matched = hybrid_search_with_stats(
